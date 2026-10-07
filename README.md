@@ -1,5 +1,9 @@
 # Django AI Face Recognition Attendance System (PyTorch + FaceNet VGGFace2)
 
+<p align="center">
+  <img src="assets/hero_banner.jpg" alt="SmartAttend AI Face Recognition Attendance System" width="100%" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+</p>
+
 ## 📌 Project Overview
 
 An advanced, premium web-based **AI Face Recognition Attendance System** built using **Django**, **PyTorch (InceptionResnetV1/FaceNet)**, and **OpenCV (LBPH Fallback)**. 
@@ -31,13 +35,17 @@ This system provides a full web interface for faculty authentication, student re
 - **Multi-Frame Voting (4/5)**: Eliminates false positives by verifying face match consistency across consecutive frames before check-in.
 - **Cooldown Lock**: A 60-second database check-in lock prevents duplicated logs.
 
-### 🔒 4. Redesigned Site Administration (Django Admin)
+### 🔒 4. Redesigned Site Administration & Student Security
 - **Glassmorphic Overrides**: Transparent `.module` frames with `backdrop-filter: blur(10px)` and glowing borders matching the parent theme.
 - **App Caption Gradients**: Deep dark purple-to-blue gradient app headings replacing the default flat admin headers.
 - **Pill Buttons**: Glassmorphic action pill elements for `+ Add` and `Change` links.
 - **Dynamic Icons**: JavaScript scans model rows to inject appropriate FontAwesome icons (`Students` -> graduate, `Attendance logs` -> clock, etc.).
 - **Timeline Feed**: Modern Activity log list styling.
 - **In-List Status Polling**: Admin changelist columns feature live progress bars and step labels showing face status processing.
+
+<p align="center">
+  <img src="assets/admin_portal_preview.jpg" alt="SmartAttend Administration and Student Directory Preview" width="100%" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+</p>
 
 ---
 
@@ -56,8 +64,15 @@ This system provides a full web interface for faculty authentication, student re
 
 ```text
 django-face-attendance/
+├── assets/                     # UI previews and banner graphics
+│   ├── hero_banner.jpg         # Dashboard & AI scanning preview
+│   └── admin_portal_preview.jpg # Administration & student directory preview
+├── run_server.bat              # One-click Windows development server launcher
+├── update_data.bat             # One-click migrations & AI recompute script
 ├── manage.py
 ├── requirements.txt
+├── README.md
+├── db.sqlite3
 ├── README.md
 ├── db.sqlite3
 ├── Models/                     # Deep learning models directory
