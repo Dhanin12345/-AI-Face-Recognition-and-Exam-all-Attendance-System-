@@ -1,0 +1,629 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}SmartAttend Administration | Secure Sign In{% endblock %}
+
+{% block bodyclass %}{{ block.super }} admin-login-page dark-theme{% endblock %}
+
+{% block header %}{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block content_title %}{% endblock %}
+{% block usertools %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Reset & Viewport Center */
+    body.admin-login-page {
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 100vh !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: radial-gradient(circle at 50% 20%, #15102a 0%, #080612 60%, #030206 100%) !important;
+        font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        color: #f3f4f6 !important;
+        overflow-x: hidden !important;
+    }
+
+    body.admin-login-page:not(.dark-theme) {
+        background: radial-gradient(circle at 50% 20%, #eef2ff 0%, #f8fafc 60%, #e2e8f0 100%) !important;
+        color: #1e293b !important;
+    }
+
+    #container {
+        width: 100% !important;
+        min-height: 100vh !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 24px !important;
+        box-sizing: border-box !important;
+        background: transparent !important;
+    }
+
+    #main {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100% !important;
+    }
+
+    #content {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 480px !important;
+    }
+
+    #content-main {
+        width: 100% !important;
+    }
+
+    /* Ambient Glow Behind Card */
+    .admin-card-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .admin-card-glow {
+        position: absolute;
+        top: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 85%;
+        height: 120px;
+        background: radial-gradient(ellipse at center, rgba(124, 77, 255, 0.35) 0%, rgba(0, 230, 118, 0.2) 50%, transparent 70%);
+        filter: blur(45px);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* Glassmorphic Login Card */
+    .admin-login-card {
+        position: relative;
+        z-index: 1;
+        background: rgba(18, 14, 34, 0.82);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.7),
+                    0 0 0 1px rgba(255, 255, 255, 0.06),
+                    0 0 35px rgba(124, 77, 255, 0.18);
+        border-radius: 24px;
+        padding: 40px 36px;
+        box-sizing: border-box;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    body:not(.dark-theme) .admin-login-card {
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15),
+                    0 0 30px rgba(99, 102, 241, 0.12);
+    }
+
+    /* Brand Header */
+    .admin-login-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .admin-brand-icon-wrapper {
+        width: 68px;
+        height: 68px;
+        margin: 0 auto 16px auto;
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(124, 77, 255, 0.25) 0%, rgba(0, 230, 118, 0.25) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 25px -5px rgba(124, 77, 255, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+        position: relative;
+    }
+
+    .admin-brand-icon-wrapper i {
+        font-size: 2rem;
+        background: linear-gradient(135deg, #00e676 0%, #00e5ff 60%, #7c4dff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 2px 8px rgba(0, 230, 118, 0.4));
+    }
+
+    .admin-login-title {
+        font-size: 1.65rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        margin: 0 0 6px 0;
+        background: linear-gradient(135deg, #ffffff 30%, #c4b5fd 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    body:not(.dark-theme) .admin-login-title {
+        background: linear-gradient(135deg, #0f172a 30%, #4338ca 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .admin-login-subtitle {
+        font-size: 0.88rem;
+        color: #94a3b8;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .admin-login-subtitle .badge {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(0, 230, 118, 0.15);
+        color: #00e676;
+        border: 1px solid rgba(0, 230, 118, 0.3);
+        font-weight: 700;
+    }
+
+    /* Authorization Alert / Notice Box */
+    .admin-auth-notice {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.08) 100%);
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 24px;
+        box-shadow: 0 8px 20px -6px rgba(239, 68, 68, 0.25);
+    }
+
+    .admin-auth-notice-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #f87171;
+        font-weight: 700;
+        font-size: 0.95rem;
+        margin-bottom: 6px;
+    }
+
+    .admin-auth-notice-body {
+        font-size: 0.85rem;
+        color: #cbd5e1;
+        line-height: 1.5;
+        margin-bottom: 12px;
+    }
+
+    body:not(.dark-theme) .admin-auth-notice-body {
+        color: #475569;
+    }
+
+    .admin-auth-notice-body code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 6px;
+        color: #fca5a5;
+        font-family: monospace;
+    }
+
+    .admin-auth-notice-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .btn-notice-action {
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 7px 14px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-notice-switch {
+        background: rgba(239, 68, 68, 0.2);
+        color: #fca5a5;
+        border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-notice-switch:hover {
+        background: rgba(239, 68, 68, 0.35);
+        color: #ffffff;
+    }
+
+    .btn-notice-home {
+        background: rgba(255, 255, 255, 0.08);
+        color: #e2e8f0;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-notice-home:hover {
+        background: rgba(255, 255, 255, 0.16);
+        color: #ffffff;
+    }
+
+    /* Standard Error Notes */
+    .admin-error-box {
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #fca5a5;
+        border-radius: 14px;
+        padding: 12px 16px;
+        font-size: 0.88rem;
+        margin-bottom: 22px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Form Fields */
+    .admin-form-group {
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    .admin-field-label {
+        display: block;
+        font-size: 0.84rem;
+        font-weight: 600;
+        color: #cbd5e1;
+        margin-bottom: 8px;
+        letter-spacing: 0.2px;
+    }
+
+    body:not(.dark-theme) .admin-field-label {
+        color: #334155;
+    }
+
+    .admin-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .admin-input-icon {
+        position: absolute;
+        left: 16px;
+        color: #64748b;
+        font-size: 0.95rem;
+        pointer-events: none;
+        transition: color 0.2s ease;
+    }
+
+    .admin-text-input {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 14px 16px 14px 44px !important;
+        background: rgba(10, 8, 20, 0.6) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        border-radius: 14px !important;
+        color: #ffffff !important;
+        font-family: inherit !important;
+        font-size: 0.95rem !important;
+        transition: all 0.25s ease !important;
+        outline: none !important;
+    }
+
+    body:not(.dark-theme) .admin-text-input {
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #0f172a !important;
+    }
+
+    .admin-text-input:focus {
+        border-color: #00e676 !important;
+        background: rgba(14, 11, 28, 0.85) !important;
+        box-shadow: 0 0 0 4px rgba(0, 230, 118, 0.18), 0 0 20px rgba(0, 230, 118, 0.2) !important;
+    }
+
+    .admin-text-input:focus + .admin-input-icon,
+    .admin-input-wrapper:focus-within .admin-input-icon {
+        color: #00e676 !important;
+    }
+
+    .password-toggle-btn {
+        position: absolute;
+        right: 14px;
+        background: none;
+        border: none;
+        color: #64748b;
+        cursor: pointer;
+        padding: 4px;
+        font-size: 0.9rem;
+        transition: color 0.2s;
+    }
+
+    .password-toggle-btn:hover {
+        color: #00e676;
+    }
+
+    /* Submit Button */
+    .admin-submit-btn {
+        width: 100% !important;
+        padding: 15px !important;
+        margin-top: 10px !important;
+        border: none !important;
+        border-radius: 14px !important;
+        background: linear-gradient(135deg, #00e676 0%, #00b0ff 100%) !important;
+        color: #040810 !important;
+        font-family: inherit !important;
+        font-size: 1rem !important;
+        font-weight: 700 !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        transition: all 0.25s ease !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 230, 118, 0.4) !important;
+    }
+
+    .admin-submit-btn:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 14px 30px -5px rgba(0, 230, 118, 0.55), 0 0 20px rgba(0, 176, 255, 0.3) !important;
+    }
+
+    .admin-submit-btn:active {
+        transform: translateY(0) !important;
+    }
+
+    /* Card Footer Links */
+    .admin-card-footer {
+        margin-top: 26px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        text-align: center;
+    }
+
+    body:not(.dark-theme) .admin-card-footer {
+        border-top-color: rgba(0, 0, 0, 0.06);
+    }
+
+    .admin-back-link {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+
+    .admin-back-link:hover {
+        color: #00e676;
+        transform: translateX(-3px);
+    }
+
+    .admin-system-hint {
+        font-size: 0.78rem;
+        color: #64748b;
+    }
+
+    /* Corner Floating Theme Switcher */
+    .theme-switch-corner {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 100;
+    }
+
+    .theme-pill-btn {
+        background: rgba(18, 14, 34, 0.75);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #cbd5e1;
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+
+    body:not(.dark-theme) .theme-pill-btn {
+        background: rgba(255, 255, 255, 0.85);
+        border-color: rgba(0, 0, 0, 0.1);
+        color: #334155;
+    }
+
+    .theme-pill-btn:hover {
+        border-color: #00e676;
+        color: #00e676;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Top Corner Theme Switcher -->
+<div class="theme-switch-corner">
+    <button type="button" class="theme-pill-btn" id="theme-toggle" onclick="toggleTheme()">
+        <i class="fa-solid fa-moon" id="theme-icon"></i>
+        <span id="theme-text">Dark Mode</span>
+    </button>
+</div>
+
+<div class="admin-card-container">
+    <div class="admin-card-glow"></div>
+
+    <div class="admin-login-card">
+        <!-- Brand Header -->
+        <div class="admin-login-header">
+            <div class="admin-brand-icon-wrapper">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h1 class="admin-login-title">SmartAttend</h1>
+            <p class="admin-login-subtitle">
+                Site Administration <span class="badge"><i class="fa-solid fa-lock"></i> Protected</span>
+            </p>
+        </div>
+
+        <!-- Authenticated but Unauthorized User Warning (e.g. abi@gmail.com without staff rights) -->
+        {% if user.is_authenticated and not user.is_staff %}
+        <div class="admin-auth-notice">
+            <div class="admin-auth-notice-head">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Access Restricted</span>
+            </div>
+            <div class="admin-auth-notice-body">
+                You are currently logged in as <code>{{ user.username }}</code>, but this account does not have staff or administrator privileges.
+            </div>
+            <div class="admin-auth-notice-actions">
+                <a href="{% url 'logout' %}?next={% url 'admin:login' %}" class="btn-notice-action btn-notice-switch">
+                    <i class="fa-solid fa-right-from-bracket"></i> Switch Account
+                </a>
+                <a href="{% url 'dashboard' %}" class="btn-notice-action btn-notice-home">
+                    <i class="fa-solid fa-house"></i> Main Dashboard
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Form Validation Errors -->
+        {% if form.errors and not form.non_field_errors %}
+        <div class="admin-error-box">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>Please correct the errors in the login form below.</span>
+        </div>
+        {% endif %}
+
+        {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}
+            <div class="admin-error-box">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>{{ error }}</span>
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Clean Modern Login Form -->
+        <form action="{{ app_path }}" method="post" id="login-form">
+            {% csrf_token %}
+
+            <div class="admin-form-group">
+                <label class="admin-field-label" for="id_username">Administrator Username or Email</label>
+                <div class="admin-input-wrapper">
+                    <input type="text" 
+                           name="username" 
+                           id="id_username" 
+                           class="admin-text-input" 
+                           placeholder="e.g. admin or faculty@college.edu" 
+                           autofocus 
+                           required 
+                           value="{{ form.username.value|default:'' }}">
+                    <i class="fa-solid fa-user admin-input-icon"></i>
+                </div>
+                {% if form.username.errors %}
+                <div style="color: #f87171; font-size: 0.8rem; margin-top: 5px;">{{ form.username.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <div class="admin-form-group">
+                <label class="admin-field-label" for="id_password">Password</label>
+                <div class="admin-input-wrapper">
+                    <input type="password" 
+                           name="password" 
+                           id="id_password" 
+                           class="admin-text-input" 
+                           placeholder="••••••••••••" 
+                           required>
+                    <i class="fa-solid fa-lock admin-input-icon"></i>
+                    <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility()" title="Show/Hide Password">
+                        <i class="fa-solid fa-eye" id="toggle-eye-icon"></i>
+                    </button>
+                </div>
+                {% if form.password.errors %}
+                <div style="color: #f87171; font-size: 0.8rem; margin-top: 5px;">{{ form.password.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <input type="hidden" name="next" value="{{ next|default:'/admin/' }}">
+
+            <button type="submit" class="admin-submit-btn">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                <span>Sign In to Admin Console</span>
+            </button>
+        </form>
+
+        <!-- Footer Links -->
+        <div class="admin-card-footer">
+            <a href="{% url 'dashboard' %}" class="admin-back-link">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Return to Main Attendance Portal</span>
+            </a>
+            <div class="admin-system-hint">
+                <i class="fa-solid fa-shield"></i> Face Recognition AI Management System
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Theme toggle functionality
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+    }
+
+    function applyTheme(theme) {
+        const body = document.body;
+        const icon = document.getElementById('theme-icon');
+        const text = document.getElementById('theme-text');
+
+        if (theme === 'dark') {
+            body.classList.add('dark-theme');
+            if (icon) icon.className = 'fa-solid fa-sun';
+            if (text) text.textContent = 'Light Mode';
+        } else {
+            body.classList.remove('dark-theme');
+            if (icon) icon.className = 'fa-solid fa-moon';
+            if (text) text.textContent = 'Dark Mode';
+        }
+        localStorage.setItem('theme', theme);
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
+        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(nextTheme);
+    }
+
+    // Password visibility toggle
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById('id_password');
+        const eyeIcon = document.getElementById('toggle-eye-icon');
+        if (!passwordInput || !eyeIcon) return;
+
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            eyeIcon.className = 'fa-solid fa-eye-slash';
+        } else {
+            passwordInput.type = 'password';
+            eyeIcon.className = 'fa-solid fa-eye';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', initTheme);
+</script>
+{% endblock %}

@@ -1,0 +1,867 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Students | SmartAttend{% endblock %}
+{% block nav_students %}active{% endblock %}
+
+{% block content %}
+
+<div style="margin-bottom: 20px;">
+    <h1 style="font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; gap: 10px;">
+        <i class="fa-solid fa-users" style="color: var(--primary);"></i> Student Directory
+    </h1>
+    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">
+        Register new student profiles, upload face photos, and update details in the system database.
+    </p>
+</div>
+
+<div class="students-dashboard-grid">
+    <!-- Left Column: Register / Update Form -->
+    <div class="student-form-card">
+        <h2 id="form-title" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 20px; color: var(--primary);">
+            <i class="fa-solid fa-user-plus"></i> Register Student
+        </h2>
+        
+        <form id="student-form" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="preview-avatar-container" id="avatar-preview-box" style="display: none;">
+                <img src="" id="avatar-preview" class="preview-avatar" alt="Face Preview">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label" for="student-name">Student Full Name</label>
+                <input type="text" id="student-name" name="name" class="form-select" style="padding: 10px;" placeholder="e.g. Kavin" required>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label" for="student-roll">Roll Number</label>
+                <input type="text" id="student-roll" name="roll_number" class="form-select" style="padding: 10px;" placeholder="e.g. 647" required>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label" for="student-dept">Department</label>
+                <select id="student-dept" name="department" class="form-select" required>
+                    <option value="" disabled selected>Choose department</option>
+                    {% for dept in departments %}
+                        <option value="{{ dept.code }}">{{ dept.code }} - {{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="form-label" for="student-sec">Section</label>
+                <select id="student-sec" name="section" class="form-select" required>
+                    <option value="" disabled selected>Choose section</option>
+                    {% for section in sections %}
+                        <option value="{{ section.name }}">{{ section.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="form-label" for="student-email">Parent Email Address</label>
+                <input type="email" id="student-email" name="parent_email" class="form-select" style="padding: 10px;" placeholder="e.g. parent@example.com">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="form-label" for="student-phone">Parent Phone Number</label>
+                <input type="text" id="student-phone" name="parent_phone" class="form-select" style="padding: 10px;" placeholder="e.g. +91 9876543210">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label class="form-label">Face Photo Upload / Capture</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <div class="file-upload-wrapper" style="flex: 1; margin-top: 0;">
+                        <input type="file" id="student-photo" name="photo" class="file-upload-input" accept="image/*">
+                        <div class="file-upload-btn" id="upload-btn-label" style="height: 40px; font-size: 0.8rem; padding: 0 10px;">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Choose File
+                        </div>
+                    </div>
+                    <button type="button" id="btn-open-camera" class="btn-panel-action green-btn" style="flex: 1; height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; font-size: 0.8rem; margin: 0; padding: 0;">
+                        <i class="fa-solid fa-camera"></i> Use Camera
+                    </button>
+                </div>
+                
+                <!-- Live Webcam Preview Panel (hidden by default) -->
+                <div id="webcam-capture-panel" style="display: none; margin-top: 15px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-card); border-radius: 15px; padding: 15px; text-align: center; position: relative; overflow: hidden;">
+                    <div style="position: relative; width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 10px; overflow: hidden; border: 1px solid var(--border-card);">
+                        <video id="webcam-preview-feed" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                        <div class="scanner-laser" style="animation-duration: 3s;"></div>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: center;">
+                        <button type="button" id="btn-capture-snap" class="btn-control green" style="padding: 8px 16px; font-size: 0.8rem; border-radius: 8px; margin: 0;">
+                            <i class="fa-solid fa-circle"></i> Snap Photo
+                        </button>
+                        <button type="button" id="btn-close-camera" class="btn-control red" style="padding: 8px 16px; font-size: 0.8rem; border-radius: 8px; margin: 0;">
+                            <i class="fa-solid fa-xmark"></i> Close Camera
+                        </button>
+                    </div>
+                </div>
+
+                <small style="display: block; color: var(--text-secondary); font-size: 0.75rem; margin-top: 5px;">
+                    Ensure the image has clear front lighting and contains only one face.
+                </small>
+            </div>
+            
+            <button type="submit" id="btn-submit-form" class="btn-submit" style="width: 100%; justify-content: center; height: 42px;">
+                <i class="fa-solid fa-user-check"></i> Register Profile
+            </button>
+            
+            <button type="button" id="btn-cancel-edit" class="btn-panel-action" style="width: 100%; margin-top: 10px; height: 42px; display: none; background: rgba(255,255,255,0.03);">
+                Cancel Edit
+            </button>
+        </form>
+    </div>
+    
+    <!-- Right Column: Student Directory Listing -->
+    <div class="student-list-card">
+        <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <span><i class="fa-solid fa-list-ul" style="color: var(--accent-blue);"></i> Registered Students</span>
+            <span class="roster-count-badge" style="background: rgba(0, 229, 255, 0.15); color: #00e5ff;">{{ students|length }}</span>
+        </h2>
+        
+        <div class="table-container" style="max-height: 520px; overflow-y: auto;">
+            {% if students %}
+            <table class="student-table">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;">Face</th>
+                        <th>Student Details</th>
+                        <th>Class</th>
+                        <th style="text-align: center; width: 115px;">Status</th>
+                        <th style="text-align: center; width: 150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr id="student-row-{{ student.id }}">
+                        <td>
+                            {% if student.photo %}
+                            <img src="{{ student.photo.url }}" class="student-row-avatar" alt="Avatar">
+                            {% else %}
+                            <img src="{% static 'attendance/default-avatar.png' %}" class="student-row-avatar" alt="Avatar">
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="student-row-name">{{ student.name }}</div>
+                            <div class="student-row-roll">Roll: {{ student.roll_number }}</div>
+                            <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 5px; display: flex; flex-direction: column; gap: 3px;">
+                                {% if student.parent_email %}
+                                <span><i class="fa-solid fa-envelope" style="color: var(--primary); font-size: 0.65rem; margin-right: 4px;"></i> {{ student.parent_email }}</span>
+                                {% endif %}
+                                {% if student.parent_phone %}
+                                <span><i class="fa-solid fa-phone" style="color: var(--accent-emerald); font-size: 0.65rem; margin-right: 4px;"></i> {{ student.parent_phone }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge-period" style="background: rgba(0, 230, 118, 0.1); color: var(--accent-emerald); border-color: rgba(0, 230, 118, 0.2);">
+                                {{ student.department }} - {{ student.section }}
+                            </span>
+                        </td>
+                        <td style="text-align: center;">
+                            <div class="status-badge-container" id="status-container-{{ student.id }}" data-student-id="{{ student.id }}" data-has-encoding="{% if student.encoding %}true{% else %}false{% endif %}">
+                                {% if student.encoding %}
+                                <span class="badge-status encoded"><i class="fa-solid fa-circle-check"></i> Active</span>
+                                {% else %}
+                                <div class="step-progress-wrapper" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                    <span class="badge-status processing"><i class="fa-solid fa-spinner fa-spin"></i> Processing</span>
+                                    <div class="progress-bar-container" style="width: 100px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; margin-top: 2px;">
+                                        <div class="progress-bar-fill pulse" style="width: 15%; height: 100%; background: linear-gradient(90deg, #ffb300, #ff9100); transition: width 0.4s ease-out;"></div>
+                                    </div>
+                                    <div class="progress-step-label" style="font-size: 0.7rem; color: var(--text-secondary); text-align: center;">Queued...</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 8px; justify-content: center;">
+                                <button class="btn-row-edit" 
+                                        onclick="startEditStudent({{ student.id }}, '{{ student.name|escapejs }}', '{{ student.roll_number|escapejs }}', '{{ student.department|escapejs }}', '{{ student.section|escapejs }}', '{{ student.parent_email|escapejs }}', '{{ student.parent_phone|escapejs }}', '{% if student.photo %}{{ student.photo.url }}{% endif %}')">
+                                    <i class="fa-solid fa-pen-to-square"></i> Edit
+                                </button>
+                                <button class="btn-row-delete" 
+                                        onclick="deleteStudent({{ student.id }}, '{{ student.name|escapejs }}')">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align: center; padding: 60px; color: var(--text-secondary);">
+                <i class="fa-solid fa-user-slash" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 15px;"></i>
+                <p>No registered student profiles found in the database directory.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Glassmorphic Progress Modal -->
+<div id="progress-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+        <div class="modal-header">
+            <i id="modal-icon" class="fa-solid fa-microchip fa-spin modal-header-icon"></i>
+            <h3 id="modal-title">Registering Face Profile</h3>
+            <p id="modal-desc">Processing deep learning encodings for <span id="modal-student-name" style="color: var(--accent-blue); font-weight: 600;">Student</span></p>
+        </div>
+        
+        <div class="modal-body">
+            <!-- Unique Circular Face Scanning HUD -->
+            <div class="progress-circle-container">
+                <svg class="progress-ring" width="140" height="140">
+                    <circle class="progress-ring__background" stroke="rgba(255,255,255,0.04)" stroke-width="6" fill="transparent" r="60" cx="70" cy="70"/>
+                    <circle class="progress-ring__circle" stroke="var(--primary)" stroke-width="6" fill="transparent" r="60" cx="70" cy="70"/>
+                </svg>
+                
+                <!-- Inner Scan Target HUD -->
+                <div class="scanner-hud">
+                    <i id="hud-avatar" class="fa-solid fa-user-astronaut scanner-avatar"></i>
+                    <div id="hud-laser" class="scanner-laser"></div>
+                </div>
+                
+                <div class="progress-percentage-hud"><span id="progress-percent-val">0</span>%</div>
+            </div>
+            
+            <div id="modal-status-text" class="modal-status-message">Queued for processing...</div>
+            
+            <!-- Unique Horizontal Step Nodes Timeline -->
+            <div class="timeline-steps-container">
+                <div class="timeline-line">
+                    <div class="timeline-line-progress" id="timeline-bar"></div>
+                </div>
+                <div class="timeline-step" id="step-node-1">
+                    <div class="step-node-circle" id="node-circle-1">
+                        <i class="fa-solid fa-database"></i>
+                    </div>
+                    <div class="step-node-title">Setup</div>
+                </div>
+                <div class="timeline-step" id="step-node-2">
+                    <div class="step-node-circle" id="node-circle-2">
+                        <i class="fa-solid fa-expand"></i>
+                    </div>
+                    <div class="step-node-title">Scan</div>
+                </div>
+                <div class="timeline-step" id="step-node-3">
+                    <div class="step-node-circle" id="node-circle-3">
+                        <i class="fa-solid fa-brain"></i>
+                    </div>
+                    <div class="step-node-title">Deep AI</div>
+                </div>
+                <div class="timeline-step" id="step-node-4">
+                    <div class="step-node-circle" id="node-circle-4">
+                        <i class="fa-solid fa-network-wired"></i>
+                    </div>
+                    <div class="step-node-title">Train</div>
+                </div>
+            </div>
+            
+            <!-- AI Diagnostic Log Terminal Console -->
+            <div class="log-terminal" id="diagnostic-console">
+                <div class="log-line info">[SYS] System diagnostic interface loaded. Ready.</div>
+            </div>
+        </div>
+        
+        <div class="modal-footer" id="modal-footer-actions" style="display: none; margin-top: 25px;">
+            <button id="btn-close-modal" class="btn-panel-action" style="width: 100%; background: rgba(255,61,0,0.15); border-color: rgba(255,61,0,0.3); color: #ff3d00; justify-content: center; height: 42px;">
+                Dismiss & Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notification container -->
+<div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const studentForm = document.getElementById("student-form");
+        const studentPhoto = document.getElementById("student-photo");
+        const uploadBtnLabel = document.getElementById("upload-btn-label");
+        const avatarPreviewBox = document.getElementById("avatar-preview-box");
+        const avatarPreview = document.getElementById("avatar-preview");
+        
+        const formTitle = document.getElementById("form-title");
+        const btnSubmitForm = document.getElementById("btn-submit-form");
+        const btnCancelEdit = document.getElementById("btn-cancel-edit");
+        
+        let editMode = false;
+        let activeEditStudentId = null;
+        
+        const btnOpenCamera = document.getElementById("btn-open-camera");
+        const webcamCapturePanel = document.getElementById("webcam-capture-panel");
+        const webcamPreviewFeed = document.getElementById("webcam-preview-feed");
+        const btnCaptureSnap = document.getElementById("btn-capture-snap");
+        const btnCloseCamera = document.getElementById("btn-close-camera");
+        let webcamStream = null;
+
+        // Open camera click
+        btnOpenCamera.addEventListener("click", async function() {
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: "user" }
+                });
+                webcamPreviewFeed.srcObject = webcamStream;
+                webcamCapturePanel.style.display = "block";
+                btnOpenCamera.disabled = true;
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                alert("Could not access your camera. Please ensure permissions are granted.");
+            }
+        });
+
+        // Close camera helper function
+        function stopWebcam() {
+            if (webcamStream) {
+                webcamStream.getTracks().forEach(track => track.stop());
+                webcamStream = null;
+            }
+            webcamPreviewFeed.srcObject = null;
+            webcamCapturePanel.style.display = "none";
+            btnOpenCamera.disabled = false;
+        }
+
+        // Close camera button click
+        btnCloseCamera.addEventListener("click", stopWebcam);
+
+        // Snap Photo click
+        btnCaptureSnap.addEventListener("click", function() {
+            if (!webcamStream) return;
+            
+            const canvas = document.createElement("canvas");
+            canvas.width = webcamPreviewFeed.videoWidth || 640;
+            canvas.height = webcamPreviewFeed.videoHeight || 480;
+            
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(webcamPreviewFeed, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob(function(blob) {
+                if (blob) {
+                    // Create a File object from the blob
+                    const file = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
+                    
+                    // Assign it to the file input using DataTransfer
+                    const container = new DataTransfer();
+                    container.items.add(file);
+                    studentPhoto.files = container.files;
+                    
+                    // Update label and avatar preview
+                    uploadBtnLabel.innerHTML = `<i class="fa-solid fa-camera"></i> camera_capture.jpg`;
+                    
+                    const imageUrl = URL.createObjectURL(blob);
+                    avatarPreview.src = imageUrl;
+                    avatarPreviewBox.style.display = "flex";
+                    
+                    // Stop webcam and hide panel
+                    stopWebcam();
+                }
+            }, "image/jpeg", 0.95);
+        });
+
+        // Photo preview upload binding
+        studentPhoto.addEventListener("change", function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                uploadBtnLabel.innerHTML = `<i class="fa-solid fa-file-image"></i> ${file.name}`;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    avatarPreview.src = e.target.result;
+                    avatarPreviewBox.style.display = "flex";
+                }
+                reader.readAsDataURL(file);
+                
+                // If webcam is active, stop it
+                stopWebcam();
+            }
+        });
+        
+        const formCard = document.querySelector(".student-form-card");
+        
+        // Edit student function
+        window.startEditStudent = function(id, name, roll, dept, sec, parentEmail, parentPhone, photoUrl) {
+            editMode = true;
+            activeEditStudentId = id;
+            
+            formTitle.innerHTML = `<i class="fa-solid fa-user-pen"></i> Edit Student Profile`;
+            btnSubmitForm.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Save Profile Details`;
+            btnCancelEdit.style.display = "block";
+            
+            if (formCard) {
+                formCard.classList.add("edit-active");
+            }
+            
+            document.getElementById("student-name").value = name;
+            document.getElementById("student-roll").value = roll;
+            document.getElementById("student-dept").value = dept;
+            document.getElementById("student-sec").value = sec;
+            document.getElementById("student-email").value = parentEmail || '';
+            document.getElementById("student-phone").value = parentPhone || '';
+            
+            studentPhoto.required = false; // photo not required for editing
+            
+            if (photoUrl) {
+                avatarPreview.src = photoUrl;
+                avatarPreviewBox.style.display = "flex";
+            } else {
+                avatarPreviewBox.style.display = "none";
+            }
+            
+            uploadBtnLabel.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Upload New Photo (Optional)`;
+            if (formCard) {
+                formCard.scrollIntoView({behavior: 'smooth'});
+            }
+        };
+
+        window.deleteStudent = function(id, name) {
+            if (confirm(`Are you sure you want to delete student "${name}"? This action cannot be undone.`)) {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                
+                fetch(`/delete-student/${id}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast("Student Deleted", `Student "${name}" has been deleted successfully.`, "emerald");
+                        // Find the student's table row and remove it with an animation
+                        const row = document.getElementById(`student-row-${id}`);
+                        if (row) {
+                            row.style.transition = "all 0.4s ease";
+                            row.style.opacity = "0";
+                            row.style.transform = "translateX(-30px)";
+                            setTimeout(() => {
+                                row.remove();
+                                // If table is empty, reload to show empty state card
+                                const tbody = document.querySelector(".student-table tbody");
+                                if (tbody && tbody.children.length === 0) {
+                                    location.reload();
+                                }
+                            }, 400);
+                        } else {
+                            setTimeout(() => { location.reload(); }, 1500);
+                        }
+                    } else {
+                        showToast("Deletion Failed", data.message || "Failed to delete student.", "rose");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error deleting student:", err);
+                    showToast("Error", "A server error occurred while trying to delete the student.", "rose");
+                });
+            }
+        };
+        
+        // Cancel Edit Mode binding
+        btnCancelEdit.addEventListener("click", resetForm);
+        
+        function resetForm() {
+            editMode = false;
+            activeEditStudentId = null;
+            
+            formTitle.innerHTML = `<i class="fa-solid fa-user-plus"></i> Register Student`;
+            btnSubmitForm.innerHTML = `<i class="fa-solid fa-user-check"></i> Register Profile`;
+            btnCancelEdit.style.display = "none";
+            
+            if (formCard) {
+                formCard.classList.remove("edit-active");
+            }
+            
+            studentForm.reset();
+            studentPhoto.required = true;
+            avatarPreviewBox.style.display = "none";
+            avatarPreview.src = "";
+            uploadBtnLabel.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Choose File`;
+            
+            // stop webcam if active
+            stopWebcam();
+        }
+        
+        // Progress Ring Circumference Calculations
+        const progressRingCircle = document.querySelector('.progress-ring__circle');
+        let circumference = 0;
+        if (progressRingCircle) {
+            const radius = parseFloat(progressRingCircle.getAttribute('r')) || 60;
+            circumference = radius * 2 * Math.PI;
+            progressRingCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+            progressRingCircle.style.strokeDashoffset = `${circumference}`;
+        }
+
+        function setRingProgress(percent) {
+            if (progressRingCircle && circumference) {
+                const offset = circumference - (percent / 100) * circumference;
+                progressRingCircle.style.strokeDashoffset = offset;
+            }
+            const valSpan = document.getElementById("progress-percent-val");
+            if (valSpan) valSpan.textContent = Math.round(percent);
+        }
+
+        function appendConsoleLog(message, type = "info") {
+            const consoleBox = document.getElementById("diagnostic-console");
+            if (consoleBox) {
+                const line = document.createElement("div");
+                line.className = `log-line ${type}`;
+                const timestamp = new Date().toLocaleTimeString([], { hour12: false });
+                line.textContent = `[${timestamp}] ${message}`;
+                consoleBox.appendChild(line);
+                consoleBox.scrollTop = consoleBox.scrollHeight;
+            }
+        }
+
+        function resetProgressModal() {
+            setRingProgress(5);
+            document.getElementById("modal-status-text").textContent = "Queued for processing...";
+            document.getElementById("modal-status-text").style.color = "#ffb300";
+            
+            const modalIcon = document.getElementById("modal-icon");
+            modalIcon.className = "fa-solid fa-microchip fa-spin modal-header-icon";
+            modalIcon.style.color = "var(--primary)";
+            
+            document.getElementById("modal-title").textContent = editMode ? "Updating Student Profile" : "Registering Face Profile";
+            document.getElementById("modal-footer-actions").style.display = "none";
+            
+            const hudAvatar = document.getElementById("hud-avatar");
+            hudAvatar.className = "fa-solid fa-user-astronaut scanner-avatar";
+            hudAvatar.style.color = "var(--accent-blue)";
+            hudAvatar.style.transform = "scale(1)";
+            
+            const hudLaser = document.getElementById("hud-laser");
+            hudLaser.style.display = "block";
+            hudLaser.style.background = "var(--accent-blue)";
+            hudLaser.style.boxShadow = "0 0 10px var(--accent-blue-glow)";
+            
+            const timelineBar = document.getElementById("timeline-bar");
+            if (timelineBar) timelineBar.style.width = "0%";
+
+            if (progressRingCircle) {
+                progressRingCircle.style.stroke = "var(--primary)";
+            }
+
+            // Reset checklist timeline nodes to default
+            for (let i = 1; i <= 4; i++) {
+                const node = document.getElementById(`step-node-${i}`);
+                if (node) {
+                    node.className = "timeline-step";
+                }
+            }
+
+            // Reset terminal console log
+            const consoleBox = document.getElementById("diagnostic-console");
+            if (consoleBox) {
+                consoleBox.innerHTML = "";
+            }
+            appendConsoleLog("[SYS] Initializing face registration pipeline...", "info");
+            const studentNameVal = document.getElementById("student-name").value;
+            appendConsoleLog(`[SYS] Tracking target student: ${studentNameVal}`, "info");
+        }
+
+
+        // Form Submit handler
+        studentForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const targetUrl = editMode ? `/update-student/${activeEditStudentId}/` : "/add-student/";
+            const studentNameVal = document.getElementById("student-name").value;
+            
+            btnSubmitForm.disabled = true;
+            btnSubmitForm.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+            
+            fetch(targetUrl, {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-CSRFToken": formData.get("csrfmiddlewaretoken")
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                btnSubmitForm.disabled = false;
+                btnSubmitForm.innerHTML = editMode ? `<i class="fa-solid fa-floppy-disk"></i> Save Profile Details` : `<i class="fa-solid fa-user-check"></i> Register Profile`;
+                
+                if (data.success) {
+                    const studentId = data.student_id;
+                    
+                    // Show Progress Modal
+                    document.getElementById("modal-student-name").textContent = studentNameVal;
+                    resetProgressModal();
+                    document.getElementById("progress-modal").style.display = "flex";
+                    
+                    // Start Polling Background Encoding Process
+                    let attempts = 0;
+                    const maxAttempts = 50; // 50 * 1.2s = 60s
+                    let lastStatusText = "";
+                    
+                    const intervalId = setInterval(() => {
+                        attempts++;
+                        if (attempts > maxAttempts) {
+                            clearInterval(intervalId);
+                            handleProcessFailure("Process timeout. System is busy.");
+                            return;
+                        }
+                        
+                        fetch(`/student-status/${studentId}/`)
+                        .then(res => res.json())
+                        .then(statusData => {
+                            const step = statusData.step;
+                            const percent = statusData.percent;
+                            const text = statusData.text;
+                            
+                            setRingProgress(percent);
+                            document.getElementById("modal-status-text").textContent = text;
+                            
+                            if (text && text !== lastStatusText) {
+                                let logType = "info";
+                                if (step === 5) logType = "success";
+                                else if (step === -1) logType = "error";
+                                else if (step >= 4) logType = "success";
+                                
+                                appendConsoleLog(text, logType);
+                                
+                                // Interject cool technical step details
+                                if (step === 2) {
+                                    appendConsoleLog("Localization: Frontal face Cascade scanning initiated...", "info");
+                                } else if (step === 3) {
+                                    appendConsoleLog("FaceNet Model: Computing 512-dimensional vector. Weights loaded.", "info");
+                                } else if (step === 4) {
+                                    appendConsoleLog("Local training: Recomputing LBPH histogram patterns...", "info");
+                                }
+                                lastStatusText = text;
+                            }
+
+                            // Update Timeline Progress Bar
+                            const timelineBar = document.getElementById("timeline-bar");
+                            if (timelineBar) {
+                                const timelineWidths = {0: 0, 1: 0, 2: 33, 3: 66, 4: 100, 5: 100, "-1": 100};
+                                timelineBar.style.width = `${timelineWidths[step] || 0}%`;
+                            }
+
+                            // Update Checklist Items dynamically
+                            for (let i = 1; i <= 4; i++) {
+                                if (step === -1) {
+                                    continue;
+                                }
+                                if (step > i || step === 5) {
+                                    updateTimelineStepNode(i, "completed");
+                                } else if (step === i || (step === 0 && i === 1)) {
+                                    updateTimelineStepNode(i, "active");
+                                } else {
+                                    const node = document.getElementById(`step-node-${i}`);
+                                    if (node) node.className = "timeline-step";
+                                }
+                            }
+                            
+                            // Dynamic inner HUD transitions based on step
+                            const hudAvatar = document.getElementById("hud-avatar");
+                            const hudLaser = document.getElementById("hud-laser");
+                            
+                            if (hudAvatar && hudLaser) {
+                                if (step === 1 || step === 2) {
+                                    hudAvatar.style.color = "var(--accent-blue)";
+                                    hudLaser.style.background = "var(--accent-blue)";
+                                    hudLaser.style.boxShadow = "0 0 10px var(--accent-blue-glow)";
+                                } else if (step === 3 || step === 4) {
+                                    hudAvatar.style.color = "var(--primary)";
+                                    hudLaser.style.background = "var(--primary)";
+                                    hudLaser.style.boxShadow = "0 0 10px var(--primary-glow)";
+                                    hudAvatar.style.transform = "scale(1.05)";
+                                }
+                            }
+                            
+                            if (statusData.has_encoding || step === 5) {
+                                clearInterval(intervalId);
+                                handleProcessSuccess(studentNameVal);
+                            } else if (step === -1) {
+                                clearInterval(intervalId);
+                                handleProcessFailure(text);
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Progress polling failed:", err);
+                        });
+                    }, 1200);
+                    
+                } else {
+                    showToast("Operation Failed", data.message, "rose");
+                }
+            })
+            .catch(err => {
+                btnSubmitForm.disabled = false;
+                btnSubmitForm.innerHTML = editMode ? `<i class="fa-solid fa-floppy-disk"></i> Save Profile Details` : `<i class="fa-solid fa-user-check"></i> Register Profile`;
+                showToast("System Error", "Connection failed. Please try again.", "rose");
+                console.error(err);
+            });
+        });
+
+        function updateTimelineStepNode(stepNum, status) {
+            const node = document.getElementById(`step-node-${stepNum}`);
+            if (!node) return;
+            node.className = `timeline-step ${status}`;
+        }
+
+        function handleProcessSuccess(name) {
+            setRingProgress(100);
+            document.getElementById("modal-status-text").textContent = "Profile successfully activated!";
+            document.getElementById("modal-status-text").style.color = "var(--accent-emerald)";
+            document.getElementById("modal-title").textContent = "Registration Successful!";
+            
+            const headerIcon = document.getElementById("modal-icon");
+            headerIcon.className = "fa-solid fa-circle-check modal-header-icon";
+            headerIcon.style.color = "var(--accent-emerald)";
+            
+            const hudAvatar = document.getElementById("hud-avatar");
+            if (hudAvatar) {
+                hudAvatar.className = "fa-solid fa-user-check scanner-avatar";
+                hudAvatar.style.color = "var(--accent-emerald)";
+                hudAvatar.style.transform = "scale(1.15)";
+            }
+            
+            const hudLaser = document.getElementById("hud-laser");
+            if (hudLaser) hudLaser.style.display = "none";
+            
+            if (progressRingCircle) {
+                progressRingCircle.style.stroke = "var(--accent-emerald)";
+            }
+            
+            // Mark all steps completed
+            for (let i = 1; i <= 4; i++) {
+                updateTimelineStepNode(i, "completed");
+            }
+            
+            showToast("Success", `Profile for "${name}" is fully registered and active!`, "emerald");
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 1800);
+        }
+
+        function handleProcessFailure(errorMsg) {
+            document.getElementById("modal-status-text").textContent = errorMsg || "Face registration failed.";
+            document.getElementById("modal-status-text").style.color = "var(--accent-rose)";
+            document.getElementById("modal-title").textContent = "Registration Failed";
+            
+            const headerIcon = document.getElementById("modal-icon");
+            headerIcon.className = "fa-solid fa-circle-exclamation modal-header-icon";
+            headerIcon.style.color = "var(--accent-rose)";
+            
+            const hudAvatar = document.getElementById("hud-avatar");
+            if (hudAvatar) {
+                hudAvatar.className = "fa-solid fa-user-xmark scanner-avatar";
+                hudAvatar.style.color = "var(--accent-rose)";
+                hudAvatar.style.transform = "scale(1.1)";
+            }
+            
+            const hudLaser = document.getElementById("hud-laser");
+            if (hudLaser) hudLaser.style.display = "none";
+            
+            if (progressRingCircle) {
+                progressRingCircle.style.stroke = "var(--accent-rose)";
+            }
+            
+            // Mark all active steps as failed
+            for (let i = 1; i <= 4; i++) {
+                const node = document.getElementById(`step-node-${i}`);
+                if (node && node.classList.contains("active")) {
+                    updateTimelineStepNode(i, "failed");
+                }
+            }
+            
+            // Show dismiss actions
+            document.getElementById("modal-footer-actions").style.display = "block";
+        }
+
+        // Close modal button binding
+        document.getElementById("btn-close-modal").addEventListener("click", function() {
+            document.getElementById("progress-modal").style.display = "none";
+            resetForm();
+        });
+        
+
+        
+        // Toast message utility
+        function showToast(title, body, typeColor) {
+            const toast = document.createElement("div");
+            toast.style.background = "rgba(18, 16, 32, 0.9)";
+            toast.style.color = "var(--text-primary)";
+            toast.style.border = `1px solid var(--border-card)`;
+            toast.style.borderLeft = `4px solid var(--accent-${typeColor})`;
+            toast.style.borderRadius = "8px";
+            toast.style.padding = "12px 18px";
+            toast.style.marginBottom = "10px";
+            toast.style.width = "300px";
+            toast.style.boxShadow = "0 8px 30px rgba(0,0,0,0.5)";
+            toast.style.backdropFilter = "blur(10px)";
+            toast.style.transition = "all 0.5s ease";
+            
+            toast.innerHTML = `
+                <div style="font-weight:700; font-size:0.85rem; margin-bottom:3px; display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-bell" style="color:var(--accent-${typeColor});"></i> ${title}
+                </div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">${body}</div>
+            `;
+            
+            document.getElementById("toast-container").appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateX(50px)";
+                setTimeout(() => { toast.remove(); }, 500);
+            }, 4000);
+        }
+
+        // Real-time status polling for background face encodings
+        const containers = document.querySelectorAll(".status-badge-container[data-has-encoding='false']");
+        containers.forEach(container => {
+            const studentId = container.getAttribute("data-student-id");
+            let pollAttempts = 0;
+            const maxAttempts = 40; // Poll up to 60 seconds
+            
+            const intervalId = setInterval(() => {
+                pollAttempts++;
+                if (pollAttempts > maxAttempts) {
+                    clearInterval(intervalId);
+                    container.innerHTML = `<span class="badge-status" style="background: rgba(255, 61, 0, 0.1); color: var(--accent-rose); border-color: rgba(255, 61, 0, 0.2);"><i class="fa-solid fa-triangle-exclamation"></i> Timeout</span>`;
+                    return;
+                }
+                
+                fetch(`/student-status/${studentId}/`)
+                .then(res => res.json())
+                .then(data => {
+                    const progressBar = container.querySelector(".progress-bar-fill");
+                    const statusLabel = container.querySelector(".progress-step-label");
+                    
+                    if (data.has_encoding || data.step === 5) {
+                        clearInterval(intervalId);
+                        container.setAttribute("data-has-encoding", "true");
+                        container.innerHTML = `<span class="badge-status encoded"><i class="fa-solid fa-circle-check"></i> Active</span>`;
+                        showToast("Face Registered", `Face template calculation is now complete and active!`, "emerald");
+                    } else if (data.step === -1) {
+                        clearInterval(intervalId);
+                        container.innerHTML = `<span class="badge-status failed" style="background: rgba(255, 61, 0, 0.1); color: var(--accent-rose); border-color: rgba(255, 61, 0, 0.2);"><i class="fa-solid fa-triangle-exclamation"></i> Failed</span><div style="font-size:0.65rem; color:var(--accent-rose); margin-top:4px; text-align:center; width:120px; line-height:1.2;">${data.text}</div>`;
+                        showToast("Face Registration Failed", data.text, "rose");
+                    } else {
+                        if (progressBar) {
+                            progressBar.style.width = `${data.percent}%`;
+                        }
+                        if (statusLabel) {
+                            statusLabel.textContent = data.text;
+                        }
+                    }
+                })
+                .catch(err => console.error("Status check failed:", err));
+            }, 1500); // Poll slightly faster for better UI responsiveness
+        });
+    });
+</script>
+{% endblock %}

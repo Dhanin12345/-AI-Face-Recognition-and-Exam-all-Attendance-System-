@@ -1,0 +1,654 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Class Calendar | SmartAttend{% endblock %}
+{% block nav_calendar %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Calendar Page Specific Styles */
+    .calendar-layout {
+        display: grid;
+        grid-template-columns: 2.2fr 1fr;
+        gap: 25px;
+        margin-top: 15px;
+        align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+        .calendar-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Left Pane - Large Calendar Card */
+    .calendar-main-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-card);
+        border-radius: 20px;
+        padding: 25px;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .calendar-top-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        padding-bottom: 15px;
+    }
+
+    .calendar-title-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .calendar-title-wrapper i {
+        color: var(--primary);
+        font-size: 1.5rem;
+        text-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    .calendar-title-wrapper h2 {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--text-primary);
+    }
+
+    .calendar-navigation {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .calendar-month-display {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        min-width: 160px;
+        text-align: center;
+    }
+
+    .calendar-control-btn {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--text-primary);
+        cursor: pointer;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .calendar-control-btn:hover {
+        background: rgba(124, 77, 255, 0.15);
+        border-color: var(--border-card-active);
+        color: var(--primary);
+        transform: scale(1.08);
+        box-shadow: 0 0 8px var(--primary-glow);
+    }
+
+    .calendar-control-btn:active {
+        transform: scale(0.95);
+    }
+
+    /* Month Grid Styles */
+    .calendar-grid-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        text-align: center;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin-bottom: 12px;
+        letter-spacing: 1px;
+    }
+
+    .calendar-grid-days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+    }
+
+    .calendar-page-day-cell {
+        aspect-ratio: 1.25;
+        background: rgba(255, 255, 255, 0.01);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: flex-start;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        position: relative;
+    }
+
+    .calendar-page-day-cell:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.12);
+        transform: translateY(-2px);
+    }
+
+    .calendar-page-day-cell .day-number {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        z-index: 2;
+    }
+
+    .calendar-page-day-cell:hover .day-number {
+        color: var(--text-primary);
+    }
+
+    .calendar-page-day-cell.other-month-day {
+        opacity: 0.18;
+        cursor: not-allowed;
+    }
+
+    .calendar-page-day-cell.other-month-day:hover {
+        background: transparent;
+        border-color: rgba(255, 255, 255, 0.03);
+        transform: none;
+    }
+
+    .calendar-page-day-cell.today-day {
+        border: 1.5px solid var(--primary);
+        box-shadow: inset 0 0 8px rgba(124, 77, 255, 0.15);
+    }
+    
+    .calendar-page-day-cell.today-day .day-number {
+        color: var(--primary);
+        font-weight: 700;
+        text-shadow: 0 0 6px var(--primary-glow);
+    }
+
+    .calendar-page-day-cell.selected-day {
+        background: var(--primary-gradient) !important;
+        border-color: transparent !important;
+        box-shadow: 0 4px 15px var(--primary-glow);
+    }
+
+    .calendar-page-day-cell.selected-day .day-number {
+        color: white !important;
+        font-weight: 700;
+    }
+
+    /* Event Badge indicators */
+    .day-session-indicator {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 5px;
+        min-height: 16px;
+    }
+
+    .session-dot-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        border-radius: 6px;
+        background: rgba(0, 229, 255, 0.15);
+        color: var(--accent-blue);
+        border: 1px solid rgba(0, 229, 255, 0.25);
+        box-shadow: 0 0 6px rgba(0, 229, 255, 0.1);
+        transition: all 0.2s;
+    }
+
+    .calendar-page-day-cell.selected-day .session-dot-badge {
+        background: rgba(255, 255, 255, 0.25);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.4);
+        box-shadow: none;
+    }
+
+    /* Right Pane - Sessions Details Card */
+    .calendar-details-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-card);
+        border-radius: 20px;
+        padding: 25px;
+        backdrop-filter: blur(15px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        height: 100%;
+        min-height: 480px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .details-header {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+    }
+
+    .details-header h3 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .details-header h3 i {
+        color: var(--accent-blue);
+        text-shadow: 0 0 8px var(--accent-blue-glow);
+    }
+
+    .details-header p {
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        margin: 5px 0 0 0;
+    }
+
+    .sessions-list-wrapper {
+        flex-grow: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    /* Session List Item Design */
+    .session-list-item {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 14px;
+        padding: 15px;
+        transition: all 0.3s ease;
+        display: block;
+        text-decoration: none !important;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .session-list-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3.5px;
+        background: var(--accent-blue);
+        box-shadow: 0 0 8px var(--accent-blue-glow);
+        opacity: 0.8;
+    }
+
+    .session-list-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(0, 229, 255, 0.25);
+        box-shadow: 0 4px 15px rgba(0, 229, 255, 0.05);
+        transform: translateX(3px);
+    }
+
+    .session-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .session-item-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .session-item-rate-badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: rgba(0, 230, 118, 0.12);
+        color: var(--accent-emerald);
+        border: 1px solid rgba(0, 230, 118, 0.2);
+    }
+
+    .session-item-details {
+        margin-top: 8px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px 10px;
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+    }
+
+    .session-item-detail {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .session-item-detail i {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        width: 12px;
+    }
+
+    /* Empty state */
+    .sessions-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+        gap: 15px;
+        margin: auto 0;
+    }
+
+    .sessions-empty-state i {
+        font-size: 2.8rem;
+        opacity: 0.3;
+        color: var(--text-muted);
+    }
+
+    .sessions-empty-state p {
+        font-size: 0.85rem;
+        line-height: 1.4;
+        max-width: 200px;
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="calendar-container" style="padding: 10px 0;">
+    <!-- Back Button / Banner -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <a href="{% url 'dashboard' %}" style="display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-secondary)'">
+            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Calendar Layout Grid -->
+    <div class="calendar-layout">
+        
+        <!-- Left Column: Big Interactive Month Calendar -->
+        <div class="calendar-main-pane">
+            <div class="calendar-main-card">
+                <!-- Top Month selector controls -->
+                <div class="calendar-top-header">
+                    <div class="calendar-title-wrapper">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <h2>Class Calendar</h2>
+                    </div>
+                    <div class="calendar-navigation">
+                        <button class="calendar-control-btn" id="calendar-prev-month" title="Previous Month">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <span class="calendar-month-display" id="calendar-month-display-text">June 2026</span>
+                        <button class="calendar-control-btn" id="calendar-next-month" title="Next Month">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Calendar Weekdays Labels -->
+                <div class="calendar-grid-weekdays">
+                    <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                </div>
+
+                <!-- Calendar Days Grid -->
+                <div class="calendar-grid-days" id="calendar-grid-days-container">
+                    <!-- Javascript populated day cells -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Details Pane for Selected Day's Sessions -->
+        <div class="calendar-side-pane">
+            <div class="calendar-details-card">
+                <div class="details-header">
+                    <h3>
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span id="details-header-title">Date Sessions</span>
+                    </h3>
+                    <p id="details-header-subtitle">Select a day to view its logs</p>
+                </div>
+
+                <!-- List items wrapper -->
+                <div class="sessions-list-wrapper" id="sessions-list-wrapper">
+                    <!-- Default Empty State -->
+                    <div class="sessions-empty-state">
+                        <i class="fa-regular fa-calendar-clock"></i>
+                        <p>Select a date on the calendar grid to view attendance sessions</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let currentDate = new Date();
+        let sessionDates = [];
+        let selectedDateStr = null;
+
+        const monthDisplayText = document.getElementById('calendar-month-display-text');
+        const prevMonthBtn = document.getElementById('calendar-prev-month');
+        const nextMonthBtn = document.getElementById('calendar-next-month');
+        const daysGridContainer = document.getElementById('calendar-grid-days-container');
+        const detailsHeaderTitle = document.getElementById('details-header-title');
+        const detailsHeaderSubtitle = document.getElementById('details-header-subtitle');
+        const sessionsListWrapper = document.getElementById('sessions-list-wrapper');
+
+        // Fetch all active session dates from system-stats
+        function fetchSessionDates() {
+            fetch('/system-stats/')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.session_dates) {
+                        sessionDates = data.session_dates;
+                        renderCalendarGrid(currentDate);
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to fetch calendar session statistics:', err);
+                    renderCalendarGrid(currentDate);
+                });
+        }
+
+        function renderCalendarGrid(date) {
+            daysGridContainer.innerHTML = '';
+            
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            
+            const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            monthDisplayText.textContent = `${months[month]} ${year}`;
+            
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const totalDays = new Date(year, month + 1, 0).getDate();
+            const prevTotalDays = new Date(year, month, 0).getDate();
+            
+            // Render previous month days (filler items)
+            for (let i = firstDayIndex; i > 0; i--) {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-page-day-cell other-month-day';
+                
+                const numberSpan = document.createElement('span');
+                numberSpan.className = 'day-number';
+                numberSpan.textContent = prevTotalDays - i + 1;
+                
+                cell.appendChild(numberSpan);
+                daysGridContainer.appendChild(cell);
+            }
+            
+            // Render current month days
+            const today = new Date();
+            for (let i = 1; i <= totalDays; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-page-day-cell';
+                
+                const cellDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                
+                const numberSpan = document.createElement('span');
+                numberSpan.className = 'day-number';
+                numberSpan.textContent = i;
+                cell.appendChild(numberSpan);
+
+                // Add indicator container
+                const badgeContainer = document.createElement('div');
+                badgeContainer.className = 'day-session-indicator';
+                cell.appendChild(badgeContainer);
+
+                // Check if today
+                if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                    cell.classList.add('today-day');
+                }
+
+                // Check if previously selected cell
+                if (selectedDateStr === cellDateStr) {
+                    cell.classList.add('selected-day');
+                }
+                
+                // Add badge if there is a session
+                if (sessionDates.includes(cellDateStr)) {
+                    const badge = document.createElement('span');
+                    badge.className = 'session-dot-badge';
+                    badge.textContent = 'Active';
+                    badgeContainer.appendChild(badge);
+                }
+                
+                // Click Handler
+                cell.addEventListener('click', function() {
+                    // Update active state class selection
+                    document.querySelectorAll('.calendar-page-day-cell').forEach(c => c.classList.remove('selected-day'));
+                    cell.classList.add('selected-day');
+                    selectedDateStr = cellDateStr;
+                    
+                    fetchSessionsForDate(cellDateStr);
+                });
+                
+                daysGridContainer.appendChild(cell);
+            }
+            
+            // Render next month days (filler items to complete 42 elements grid if needed)
+            const totalCellsUsed = daysGridContainer.children.length;
+            const remainingCells = 42 - totalCellsUsed;
+            if (remainingCells > 0 && remainingCells < 14) {
+                for (let i = 1; i <= remainingCells; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'calendar-page-day-cell other-month-day';
+                    
+                    const numberSpan = document.createElement('span');
+                    numberSpan.className = 'day-number';
+                    numberSpan.textContent = i;
+                    
+                    cell.appendChild(numberSpan);
+                    daysGridContainer.appendChild(cell);
+                }
+            }
+        }
+
+        function fetchSessionsForDate(dateStr) {
+            // Set header values
+            const opt = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
+            const formatted = new Date(dateStr).toLocaleDateString('en-US', opt);
+            detailsHeaderTitle.textContent = formatted;
+            detailsHeaderSubtitle.textContent = 'Sessions summary';
+
+            // Show Loading state
+            sessionsListWrapper.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 0; color: var(--text-secondary); gap: 12px; margin: auto;">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
+                    <p style="font-size: 0.85rem; margin: 0;">Loading sessions...</p>
+                </div>
+            `;
+
+            fetch(`/sessions-by-date/?date=${dateStr}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.sessions && data.sessions.length > 0) {
+                        renderSessions(data.sessions);
+                    } else {
+                        renderNoSessionsState();
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    sessionsListWrapper.innerHTML = `
+                        <div class="sessions-empty-state">
+                            <i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-orange); opacity: 0.7;"></i>
+                            <p>An error occurred while retrieving session details.</p>
+                        </div>
+                    `;
+                });
+        }
+
+        function renderSessions(sessions) {
+            sessionsListWrapper.innerHTML = '';
+            
+            sessions.forEach(s => {
+                const item = document.createElement('a');
+                item.className = 'session-list-item';
+                item.href = `/camera/${s.id}/`;
+                
+                item.innerHTML = `
+                    <div class="session-item-header">
+                        <div class="session-item-title">${s.subject}</div>
+                        <div class="session-item-rate-badge">${s.attendance_rate}</div>
+                    </div>
+                    <div class="session-item-details">
+                        <div class="session-item-detail">
+                            <i class="fa-solid fa-people-roof"></i>
+                            <span>${s.dept_section}</span>
+                        </div>
+                        <div class="session-item-detail">
+                            <i class="fa-solid fa-clock"></i>
+                            <span>${s.start_time}</span>
+                        </div>
+                        <div class="session-item-detail" style="grid-column: span 2;">
+                            <i class="fa-solid fa-timeline"></i>
+                            <span>${s.period}</span>
+                        </div>
+                    </div>
+                `;
+                sessionsListWrapper.appendChild(item);
+            });
+        }
+
+        function renderNoSessionsState() {
+            sessionsListWrapper.innerHTML = `
+                <div class="sessions-empty-state">
+                    <i class="fa-solid fa-mug-hot"></i>
+                    <p>No active attendance sessions recorded on this date.</p>
+                </div>
+            `;
+        }
+
+        // Navigation Bindings
+        prevMonthBtn.addEventListener('click', function() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderCalendarGrid(currentDate);
+        });
+
+        nextMonthBtn.addEventListener('click', function() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderCalendarGrid(currentDate);
+        });
+
+        // Initialize Fetch
+        fetchSessionDates();
+    });
+</script>
+{% endblock %}

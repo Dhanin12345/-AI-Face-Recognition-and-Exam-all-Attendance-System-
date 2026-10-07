@@ -1,0 +1,212 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Live DB Tracking | SmartAttend{% endblock %}
+{% block nav_tracking %}active{% endblock %}
+
+{% block content %}
+<div class="layout-container" style="max-width: 100%; padding: 0;">
+    <!-- Back Link and Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+        <div>
+            <a href="{% url 'dashboard' %}" style="display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); text-decoration: none; margin-bottom: 10px; font-weight: 500; font-size: 0.95rem; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-secondary)'">
+                <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+            </a>
+            <h2 style="font-size: 1.8rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-database" style="color: var(--accent-blue); text-shadow: 0 0 10px var(--accent-blue-glow);"></i> Live Database & Student Tracking
+            </h2>
+        </div>
+        
+        <div>
+            <button onclick="window.location.reload();" class="btn-action-export" style="background: rgba(0, 229, 255, 0.15); border-color: rgba(0, 229, 255, 0.3); color: var(--accent-blue); cursor: pointer; padding: 10px 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; border-radius: 10px; transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                <i class="fa-solid fa-rotate"></i> Refresh Database Timelines
+            </button>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr; gap: 30px; margin-bottom: 45px;">
+        
+        <!-- SECTION 1: Live Face Encoding Timelines -->
+        <div class="card" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div class="card-header" style="border-bottom: 1px solid var(--border-card); padding-bottom: 15px; margin-bottom: 20px;">
+                <h3 class="card-title" style="display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
+                    <i class="fa-solid fa-microchip" style="color: var(--primary);"></i> Student Registration & Face Encoding Pipeline
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px;">Tracks background vector embedding calculations and LBPH classifier compilation times.</p>
+            </div>
+            
+            <div class="table-container" style="overflow-x: auto;">
+                {% if students_timeline %}
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-card); padding-bottom: 10px;">
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">Student Details</th>
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">Reg Date & Time</th>
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">Encoding Status</th>
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">Pipeline Step</th>
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">Progress</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in students_timeline %}
+                        <tr style="border-bottom: 1px solid var(--border-card); transition: background 0.2s;" onmouseover="this.style.background='rgba(46, 204, 113, 0.05)'" onmouseout="this.style.background='transparent'">
+                            <!-- Details -->
+                            <td style="padding: 15px 10px; display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 42px; height: 42px; border-radius: 10px; border: 1px solid var(--border-card); overflow: hidden; background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center;">
+                                    {% if s.photo_url %}
+                                        <img src="{{ s.photo_url }}" alt="avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                                    {% else %}
+                                        <i class="fa-solid fa-user-slash" style="color: var(--text-muted); font-size: 1.1rem;"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary);">{{ s.name }}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ s.roll_number }} | {{ s.department }}-{{ s.section }}</div>
+                                </div>
+                            </td>
+                            <!-- Timestamp -->
+                            <td style="padding: 15px 10px; font-size: 0.9rem; color: var(--text-primary);">
+                                <i class="fa-regular fa-clock" style="color: var(--accent-blue); margin-right: 5px;"></i>
+                                {{ s.created_at|date:"d/m/Y h:i:s A" }}
+                            </td>
+                            <!-- Status Text -->
+                            <td style="padding: 15px 10px; font-size: 0.9rem;">
+                                {% if s.step == 5 %}
+                                    <span style="background: rgba(0, 230, 118, 0.12); color: var(--accent-emerald); border: 1px solid rgba(0, 230, 118, 0.2); padding: 4px 10px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;">
+                                        <i class="fa-solid fa-circle-check"></i> Active
+                                    </span>
+                                {% elif s.step == -1 %}
+                                    <span style="background: rgba(255, 61, 0, 0.12); color: var(--accent-rose); border: 1px solid rgba(255, 61, 0, 0.2); padding: 4px 10px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;">
+                                        <i class="fa-solid fa-circle-exclamation"></i> Failed
+                                    </span>
+                                {% else %}
+                                    <span style="background: rgba(255, 145, 0, 0.12); color: #ff9100; border: 1px solid rgba(255, 145, 0, 0.2); padding: 4px 10px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;">
+                                        <i class="fa-solid fa-spinner fa-spin"></i> Processing
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <!-- Step Text -->
+                            <td style="padding: 15px 10px; font-size: 0.85rem; color: var(--text-secondary); max-width: 250px;">
+                                {{ s.text }}
+                            </td>
+                            <!-- Progress Bar -->
+                            <td style="padding: 15px 10px; width: 200px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="flex-grow: 1; height: 6px; background: rgba(0,0,0,0.08); border-radius: 3px; overflow: hidden;">
+                                        {% if s.step == 5 %}
+                                            <div style="width: {{ s.percent }}%; height: 100%; background: var(--accent-emerald);"></div>
+                                        {% elif s.step == -1 %}
+                                            <div style="width: {{ s.percent }}%; height: 100%; background: var(--accent-rose);"></div>
+                                        {% else %}
+                                            <div style="width: {{ s.percent }}%; height: 100%; background: #ff9100; animation: progressGlow 1.5s infinite alternate;"></div>
+                                        {% endif %}
+                                    </div>
+                                    <span style="font-size: 0.8rem; font-weight: 600; min-width: 35px; text-align: right; color: var(--text-primary);">{{ s.percent }}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                    <i class="fa-solid fa-circle-info" style="font-size: 2rem; margin-bottom: 10px; color: var(--primary);"></i>
+                    <p>No registered students found in database.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- SECTION 2: Real-time Attendance DB Transactions -->
+        <div class="card" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div class="card-header" style="border-bottom: 1px solid var(--border-card); padding-bottom: 15px; margin-bottom: 20px;">
+                <h3 class="card-title" style="display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
+                    <i class="fa-solid fa-timeline" style="color: var(--accent-emerald);"></i> Real-time Attendance DB Write Transactions
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 4px;">Compares camera recognition timestamp with exact database SQL transaction write times.</p>
+            </div>
+            
+            <div class="table-container" style="overflow-x: auto;">
+                {% if checkins_timeline %}
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-card); padding-bottom: 10px;">
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">Student Name</th>
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">Roll Number</th>
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">Session Details</th>
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">Camera Recognition Time</th>
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">DB Transaction Write Time</th>
+                            <th style="padding: 12px 10px; color: var(--text-secondary); font-weight: 600;">Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in checkins_timeline %}
+                        <tr style="border-bottom: 1px solid var(--border-card); transition: background 0.2s;" onmouseover="this.style.background='rgba(46, 204, 113, 0.05)'" onmouseout="this.style.background='transparent'">
+                            <td style="padding: 15px 10px; font-weight: 600; color: var(--text-primary);">{{ log.student_name }}</td>
+                            <td style="padding: 15px 10px; font-size: 0.9rem; color: var(--text-secondary);">{{ log.roll_number }}</td>
+                            <td style="padding: 15px 10px; font-size: 0.9rem; color: var(--text-primary);">
+                                <div style="font-weight: 500;">{{ log.subject }}</div>
+                                <div style="font-size: 0.78rem; color: var(--text-secondary);">{{ log.dept_section }} ({{ log.period }})</div>
+                            </td>
+                            <!-- Local time -->
+                            <td style="padding: 15px 10px; font-size: 0.9rem; color: var(--text-primary);">
+                                <span style="background: rgba(0, 229, 255, 0.08); color: var(--accent-blue); padding: 4px 8px; border-radius: 6px; font-weight: 500; font-family: monospace;">
+                                    {{ log.time_marked }}
+                                </span>
+                            </td>
+                            <!-- SQLite time -->
+                            <td style="padding: 15px 10px; font-size: 0.9rem; color: var(--text-primary);">
+                                <span style="background: rgba(124, 77, 255, 0.08); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-weight: 500; font-family: monospace; display: inline-flex; align-items: center; gap: 5px;">
+                                    <i class="fa-solid fa-microchip"></i> {{ log.updated_at|date:"H:i:s" }}
+                                </span>
+                                <span style="font-size: 0.78rem; color: var(--text-secondary); margin-left: 5px;">({{ log.updated_at|date:"d/m/Y" }})</span>
+                            </td>
+                            <!-- Confidence -->
+                            <td style="padding: 15px 10px;">
+                                <span style="color: var(--accent-emerald); font-weight: 700;">{{ log.confidence }}%</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <i class="fa-solid fa-circle-info" style="font-size: 2rem; margin-bottom: 10px; color: var(--primary);"></i>
+                    <p>No real-time database transactions logged yet. Start a session to capture live check-ins.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+@keyframes progressGlow {
+    0% { opacity: 0.6; filter: drop-shadow(0 0 2px #ff9100); }
+    100% { opacity: 1; filter: drop-shadow(0 0 6px #ff9100); }
+}
+</style>
+
+<script>
+// Auto-refresh the tracking dashboard every 5 seconds to show live updates
+setInterval(function() {
+    // Simply fetch current page and update card contents via simple load
+    fetch(window.location.href)
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newCards = doc.querySelectorAll('.card');
+            const oldCards = document.querySelectorAll('.card');
+            
+            if (newCards.length === oldCards.length) {
+                for (let i = 0; i < oldCards.length; i++) {
+                    oldCards[i].innerHTML = newCards[i].innerHTML;
+                }
+            }
+        })
+        .catch(err => console.warn('Failed to auto-update tracking dashboard', err));
+}, 5000);
+</script>
+{% endblock %}

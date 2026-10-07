@@ -1,0 +1,86 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in | SmartAttend</title>
+    <link rel="stylesheet" href="{% static 'attendance/style.css' %}?v=2.9">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="auth-body">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            if (theme !== 'light') {
+                document.body.classList.add('dark-theme');
+            }
+        })();
+    </script>
+
+    <!-- Floating Particles Background Animation -->
+    <div class="bg-animation">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <!-- Centered Login Card -->
+    <div class="auth-card-wrapper">
+        <div class="auth-card">
+            <!-- Sign in / Register Switcher Tabs -->
+            <div class="auth-tabs">
+                <a href="{% url 'login' %}" class="auth-tab active">
+                    <i class="fa-solid fa-key"></i> Sign in
+                </a>
+                <a href="{% url 'register' %}" class="auth-tab">
+                    <i class="fa-solid fa-user-plus"></i> Register
+                </a>
+            </div>
+            
+            <!-- Circular Avatar Header -->
+            <div class="auth-avatar-box">
+                <div class="auth-avatar-circle">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+            </div>
+            
+            <!-- Error messages -->
+            {% if error %}
+            <div class="auth-error-alert">
+                <i class="fa-solid fa-triangle-exclamation"></i> {{ error }}
+            </div>
+            {% endif %}
+            
+            <form action="{% url 'login' %}" method="POST">
+                {% csrf_token %}
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="auth-label" for="login-email">Enter your Email ID</label>
+                    <input type="text" id="login-email" name="email" class="auth-input" placeholder="test@college.edu" required>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label class="auth-label" for="login-pass">Password</label>
+                    <input type="password" id="login-pass" name="password" class="auth-input" placeholder="Password" required>
+                </div>
+                
+                <button type="submit" class="auth-btn">
+                    Sign in
+                </button>
+                
+                <div class="auth-footer-links">
+                    <a href="{% url 'register' %}" class="auth-link">register</a>
+                </div>
+                
+                <div style="text-align: center; margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
+                    <a href="/" class="auth-link" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-arrow-left"></i> Back to Login</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

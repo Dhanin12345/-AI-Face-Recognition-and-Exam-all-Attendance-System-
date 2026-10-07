@@ -1,0 +1,887 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Scanner | SmartAttend{% endblock %}
+{% block nav_attendance %}active{% endblock %}
+
+{% block extrastyle %}
+<style>
+    /* Styling overrides for the inline HUD scanner */
+    .progress-ring {
+        transform: rotate(-90deg);
+        transform-origin: center;
+    }
+    .progress-ring__circle {
+        transition: stroke-dashoffset 0.3s;
+        stroke-linecap: round;
+    }
+    .timeline-steps-container {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+    .timeline-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        z-index: 2;
+        position: relative;
+    }
+    .step-node-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #121020;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        transition: all 0.3s ease;
+    }
+    .timeline-step.active .step-node-circle {
+        border-color: var(--primary);
+        color: var(--primary);
+        box-shadow: 0 0 10px rgba(124, 77, 255, 0.4);
+    }
+    .timeline-step.completed .step-node-circle {
+        border-color: var(--accent-emerald);
+        color: var(--accent-emerald);
+        background: rgba(16, 185, 129, 0.1);
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+    }
+    .timeline-step.failed .step-node-circle {
+        border-color: var(--accent-rose);
+        color: var(--accent-rose);
+        background: rgba(244, 63, 94, 0.1);
+        box-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
+    }
+    .timeline-step-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        transition: color 0.3s;
+    }
+    .timeline-step.active .timeline-step-title {
+        color: var(--primary);
+    }
+    .timeline-step.completed .timeline-step-title {
+        color: var(--accent-emerald);
+    }
+    .timeline-step.failed .timeline-step-title {
+        color: var(--accent-rose);
+    }
+    .log-line {
+        margin-bottom: 4px;
+        line-height: 1.4;
+    }
+    .log-line.success {
+        color: var(--accent-emerald);
+    }
+    .log-line.error {
+        color: var(--accent-rose);
+    }
+    .log-line.warning {
+        color: #ffb300;
+    }
+
+    .btn-email-parent {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(0, 184, 248, 0.1);
+        color: #00a8e8;
+        border: 1px solid rgba(0, 184, 248, 0.25);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    body.dark-theme .btn-email-parent {
+        background: rgba(0, 229, 255, 0.15);
+        color: var(--accent-blue);
+        border-color: rgba(0, 229, 255, 0.3);
+    }
+    .btn-email-parent:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 184, 248, 0.25);
+        background: rgba(0, 184, 248, 0.18);
+    }
+    body.dark-theme .btn-email-parent:hover {
+        background: rgba(0, 229, 255, 0.25);
+        box-shadow: 0 4px 12px rgba(0, 229, 255, 0.4);
+    }
+    .no-email-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(0, 0, 0, 0.04);
+        color: var(--text-muted);
+        border: 1px solid var(--border-card);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    body.dark-theme .no-email-badge {
+        background: rgba(255, 255, 255, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Controls Bar -->
+<div class="live-controls-bar">
+    <button class="btn-control green" id="btn-start">
+        <i class="fa-solid fa-play"></i> Start Attendance
+    </button>
+    <button class="btn-control red" id="btn-stop">
+        <i class="fa-solid fa-stop"></i> Stop Attendance
+    </button>
+    <button class="btn-control orange" id="btn-reset">
+        <i class="fa-solid fa-rotate-left"></i> Reset Session
+    </button>
+    <button class="btn-control purple" id="btn-finish-alert" style="background: var(--primary-gradient); color: white; display: inline-flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-paper-plane"></i> Finish & Alert Parents
+    </button>
+    
+    <div class="status-indicator" style="display: flex; align-items: center; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">Attendance Running</span>
+        </div>
+        <div id="timer-badge" style="display: none; align-items: center; gap: 6px; background: rgba(124, 77, 255, 0.1); border: 1px solid rgba(124, 77, 255, 0.2); padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; color: var(--primary);">
+            <i class="fa-solid fa-clock"></i> <span id="session-timer">05:00</span>
+        </div>
+    </div>
+</div>
+
+<!-- Main Video Feed Card -->
+<div class="card" style="padding: 15px;">
+    <div class="card-header" style="margin-bottom: 12px; border-bottom: none; padding-bottom: 0;">
+        <h2 class="card-title">
+            <i class="fa-solid fa-camera"></i> Live Webcam Feed
+        </h2>
+    </div>
+    
+    <div class="webcam-container" style="position: relative; width: 100%; aspect-ratio: 16/9; max-height: 480px; background: #0b0914; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+        <div class="live-badge" id="live-badge" style="display: none; z-index: 10;">
+            <i class="fa-solid fa-circle"></i> LIVE
+        </div>
+        <video id="webcam-feed-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none;"></video>
+        
+        <div id="webcam-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-secondary); text-align: center; padding: 40px;">
+            <i class="fa-solid fa-video-slash" style="font-size: 3rem; margin-bottom: 15px; color: var(--accent-rose);"></i>
+            <p style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 600;">Camera stream paused.</p>
+            <p style="margin: 6px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Click "Start Attendance" to activate webcam scanning.</p>
+        </div>
+        
+        <div id="scanner-laser" class="scanner-laser" style="display: none; pointer-events: none; z-index: 5;"></div>
+    </div>
+    
+    <!-- Status Logs Strip -->
+    <div class="status-log-strip" id="log-strip" style="width: 100%; margin: 12px 0 0 0; box-sizing: border-box;">
+        <i class="fa-solid fa-pause" style="color: var(--accent-rose);"></i>
+        <span id="log-strip-text">Camera stream paused.</span>
+    </div>
+    
+    <!-- Inline Step-by-Step Scanner Progress HUD -->
+    <div id="camera-progress-hud" style="background: rgba(18, 16, 32, 0.4); border: 1px solid rgba(124, 77, 255, 0.15); border-radius: 12px; padding: 20px; margin-top: 15px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 25px; width: 100%; justify-content: center; flex-wrap: wrap;">
+            <!-- Circular Scanner Progress -->
+            <div class="progress-circle-container" style="position: relative; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center;">
+                <svg class="progress-ring" width="100" height="100">
+                    <circle class="progress-ring__background" stroke="rgba(255,255,255,0.04)" stroke-width="4" fill="transparent" r="42" cx="50" cy="50"/>
+                    <circle class="progress-ring__circle" id="hud-progress-circle" stroke="var(--primary)" stroke-width="4" fill="transparent" r="42" cx="50" cy="50" style="stroke-dasharray: 263.89; stroke-dashoffset: 263.89;"/>
+                </svg>
+                <div class="scanner-hud" style="position: absolute; display: flex; align-items: center; justify-content: center; width: 70px; height: 70px;">
+                    <i id="hud-avatar" class="fa-solid fa-user scanner-avatar" style="font-size: 1.6rem; color: var(--text-secondary); transition: all 0.3s ease;"></i>
+                </div>
+                <div style="position: absolute; bottom: 8px; font-size: 0.8rem; font-weight: 700; color: #fff; font-family: 'Outfit', sans-serif;"><span id="hud-progress-percent">0</span>%</div>
+            </div>
+            
+            <!-- Timeline Steps -->
+            <div style="flex: 1; min-width: 280px; max-width: 500px;">
+                <div class="timeline-steps-container">
+                    <!-- Line behind the steps -->
+                    <div style="position: absolute; top: 16px; left: 0; right: 0; height: 2px; background: rgba(255,255,255,0.05); z-index: 1;">
+                        <div id="hud-timeline-bar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s ease;"></div>
+                    </div>
+                    
+                    <!-- Steps -->
+                    <div class="timeline-step" id="hud-step-1">
+                        <div class="step-node-circle"><i class="fa-solid fa-camera"></i></div>
+                        <span class="timeline-step-title">Setup</span>
+                    </div>
+                    <div class="timeline-step" id="hud-step-2">
+                        <div class="step-node-circle"><i class="fa-solid fa-expand"></i></div>
+                        <span class="timeline-step-title">Detect</span>
+                    </div>
+                    <div class="timeline-step" id="hud-step-3">
+                        <div class="step-node-circle"><i class="fa-solid fa-brain"></i></div>
+                        <span class="timeline-step-title">Embed</span>
+                    </div>
+                    <div class="timeline-step" id="hud-step-4">
+                        <div class="step-node-circle"><i class="fa-solid fa-circle-check"></i></div>
+                        <span class="timeline-step-title">Verify</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Live Diagnostic log inside HUD -->
+        <div id="hud-diagnostic-console" style="width: 100%; background: #0b0914; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 10px 15px; font-family: monospace; font-size: 0.8rem; color: var(--text-secondary); max-height: 80px; overflow-y: auto; text-align: left; box-sizing: border-box;">
+            <div style="color: var(--text-muted);">&gt; Scanner initialized. Click Start Attendance to begin scanning.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Roster Split Panels -->
+<div class="roster-grid">
+    <!-- Present Students Column -->
+    <div class="roster-panel">
+        <div class="roster-header">
+            <h3 class="roster-title present">
+                <i class="fa-solid fa-circle-check"></i> Present Students
+            </h3>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="roster-count-badge" id="present-count">0</span>
+                <div class="roster-search-container">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" placeholder="Search..." id="search-present" class="roster-search-input">
+                </div>
+            </div>
+        </div>
+        
+        <div class="roster-list-container" id="present-list">
+            <!-- Populated via AJAX -->
+            <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                No students present yet.
+            </div>
+        </div>
+    </div>
+    
+    <!-- Absent Students Column -->
+    <div class="roster-panel">
+        <div class="roster-header">
+            <h3 class="roster-title absent">
+                <i class="fa-solid fa-circle-xmark"></i> Absent Students
+            </h3>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="roster-count-badge" id="absent-count">0</span>
+                <div class="roster-search-container">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" placeholder="Search..." id="search-absent" class="roster-search-input">
+                </div>
+            </div>
+        </div>
+        
+        <div class="roster-list-container" id="absent-list">
+            <!-- Populated via AJAX -->
+            <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                Loading class roster...
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Panel Actions Card -->
+<div class="actions-panel-card">
+    <h3 class="form-label" style="margin-bottom: 12px;">Actions</h3>
+    <div class="actions-panel-grid">
+        <a href="{% url 'export_excel' session.id %}" class="btn-panel-action export-blue">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+        </a>
+        <button class="btn-panel-action" id="btn-simulate" style="background: rgba(255, 255, 255, 0.05); color: var(--text-primary);">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Simulate Recognition
+        </button>
+        <button class="btn-panel-action green-btn" id="btn-mark-all">
+            <i class="fa-solid fa-check-double"></i> Mark All Present
+        </button>
+    </div>
+</div>
+
+<!-- Temporary Floating Toast Notification Container -->
+<div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const btnStart = document.getElementById("btn-start");
+        const btnStop = document.getElementById("btn-stop");
+        const btnReset = document.getElementById("btn-reset");
+        const btnSimulate = document.getElementById("btn-simulate");
+        const btnMarkAll = document.getElementById("btn-mark-all");
+        
+        const statusDot = document.getElementById("status-dot");
+        const statusText = document.getElementById("status-text");
+        const liveBadge = document.getElementById("live-badge");
+        const logStripText = document.getElementById("log-strip-text");
+        const logStripIcon = document.querySelector("#log-strip i");
+        
+        const presentList = document.getElementById("present-list");
+        const absentList = document.getElementById("absent-list");
+        const presentCount = document.getElementById("present-count");
+        const absentCount = document.getElementById("absent-count");
+        
+        const searchPresent = document.getElementById("search-present");
+        const searchAbsent = document.getElementById("search-absent");
+        
+        const statusUrl = "{% url 'attendance_status_ajax' session.id %}";
+        const recognizeUrl = "{% url 'recognize_frame_ajax' session.id %}";
+        const csrfToken = "{{ csrf_token }}";
+        
+        let lastPresentIds = new Set();
+        let webcamStream = null;
+        let scanInterval = null;
+        let isScanning = false;
+        
+        const timerBadge = document.getElementById("timer-badge");
+        const sessionTimer = document.getElementById("session-timer");
+        let timerInterval = null;
+        let secondsLeft = 300;
+        
+        const video = document.getElementById("webcam-feed-video");
+        const placeholder = document.getElementById("webcam-placeholder");
+        const laser = document.getElementById("scanner-laser");
+        const hudProgressCircle = document.getElementById("hud-progress-circle");
+        const hudProgressPercent = document.getElementById("hud-progress-percent");
+        const hudTimelineBar = document.getElementById("hud-timeline-bar");
+        const hudDiagnosticConsole = document.getElementById("hud-diagnostic-console");
+        const hudAvatar = document.getElementById("hud-avatar");
+        const circumference = 2 * Math.PI * 42; // r = 42
+        
+        if (hudProgressCircle) {
+            hudProgressCircle.style.strokeDasharray = circumference;
+            hudProgressCircle.style.strokeDashoffset = circumference;
+        }
+        
+        function setHUDProgress(percent) {
+            if (hudProgressCircle) {
+                const offset = circumference - (percent / 100) * circumference;
+                hudProgressCircle.style.strokeDashoffset = offset;
+            }
+            if (hudProgressPercent) {
+                hudProgressPercent.textContent = Math.round(percent);
+            }
+        }
+        
+        function updateHUDStep(stepNum, status) {
+            const step = document.getElementById(`hud-step-${stepNum}`);
+            if (step) {
+                step.className = `timeline-step ${status}`;
+            }
+        }
+        
+        function appendHUDLog(message, type = "info") {
+            if (hudDiagnosticConsole) {
+                const div = document.createElement("div");
+                div.className = `log-line ${type}`;
+                div.innerHTML = `&gt; ${message}`;
+                hudDiagnosticConsole.appendChild(div);
+                hudDiagnosticConsole.scrollTop = hudDiagnosticConsole.scrollHeight;
+            }
+        }
+        
+        function resetHUD() {
+            setHUDProgress(0);
+            if (hudTimelineBar) hudTimelineBar.style.width = "0%";
+            for (let i = 1; i <= 4; i++) {
+                updateHUDStep(i, "");
+            }
+            if (hudAvatar) {
+                hudAvatar.className = "fa-solid fa-user scanner-avatar";
+                hudAvatar.style.color = "var(--text-secondary)";
+                hudAvatar.style.transform = "scale(1)";
+            }
+            if (hudProgressCircle) {
+                hudProgressCircle.style.stroke = "var(--primary)";
+            }
+            if (hudDiagnosticConsole) {
+                hudDiagnosticConsole.innerHTML = '<div style="color: var(--text-muted);">&gt; Scanner state reset. Waiting to start...</div>';
+            }
+        }
+        
+        async function startWebcam() {
+            if (isScanning) return;
+            resetHUD();
+            appendHUDLog("Accessing camera media stream...", "info");
+            
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: "user" }
+                });
+                video.srcObject = webcamStream;
+                video.style.display = "block";
+                placeholder.style.display = "none";
+                laser.style.display = "block";
+                
+                statusDot.style.background = "var(--accent-emerald)";
+                statusDot.style.boxShadow = "0 0 8px var(--accent-emerald-glow)";
+                statusText.innerText = "Attendance Running";
+                liveBadge.style.display = "flex";
+                logStripText.innerText = "Scanning faces...";
+                logStripIcon.className = "fa-solid fa-spinner fa-spin";
+                logStripIcon.style.color = "var(--primary)";
+                
+                updateHUDStep(1, "completed");
+                if (hudTimelineBar) hudTimelineBar.style.width = "15%";
+                appendHUDLog("Camera connected successfully. Starting scanning loop...", "success");
+                
+                // Reset and start countdown timer (05:00)
+                secondsLeft = 300;
+                if (sessionTimer) sessionTimer.innerText = "05:00";
+                if (timerBadge) timerBadge.style.display = "flex";
+                if (timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(updateTimer, 1000);
+                
+                isScanning = true;
+                scanInterval = setInterval(processFrame, 1500);
+            } catch (err) {
+                console.error("Camera access failed:", err);
+                appendHUDLog(`Camera connection failed: ${err.message}`, "error");
+                updateHUDStep(1, "failed");
+                showToast("Camera Error", "Could not access your camera. Please ensure permissions are granted.", "rose");
+            }
+        }
+        
+        function processFrame() {
+            if (!isScanning || !webcamStream) return;
+            
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const base64Data = canvas.toDataURL("image/jpeg", 0.85);
+            
+            updateHUDStep(2, "active");
+            if (hudTimelineBar) hudTimelineBar.style.width = "40%";
+            setHUDProgress(25);
+            appendHUDLog("Capturing frame and running detection pipeline...", "info");
+            
+            fetch(recognizeUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'image=' + encodeURIComponent(base64Data)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!isScanning) return;
+                
+                setHUDProgress(data.percent || 0);
+                
+                if (data.step >= 1) {
+                    updateHUDStep(1, "completed");
+                }
+                
+                if (data.success) {
+                    updateHUDStep(2, "completed");
+                    updateHUDStep(3, "completed");
+                    updateHUDStep(4, "completed");
+                    if (hudTimelineBar) hudTimelineBar.style.width = "100%";
+                    
+                    if (hudAvatar) {
+                        hudAvatar.className = "fa-solid fa-user-check scanner-avatar";
+                        hudAvatar.style.color = "var(--accent-emerald)";
+                        hudAvatar.style.transform = "scale(1.15)";
+                    }
+                    if (hudProgressCircle) {
+                        hudProgressCircle.style.stroke = "var(--accent-emerald)";
+                    }
+                    
+                    appendHUDLog(data.message, "success");
+                    logStripText.innerText = data.message;
+                    
+                    fetchStatus();
+                } else {
+                    if (data.step === 1) {
+                        updateHUDStep(2, "active");
+                        updateHUDStep(3, "");
+                        updateHUDStep(4, "");
+                        if (hudTimelineBar) hudTimelineBar.style.width = "30%";
+                        if (hudAvatar) {
+                            hudAvatar.className = "fa-solid fa-user scanner-avatar";
+                            hudAvatar.style.color = "var(--text-secondary)";
+                            hudAvatar.style.transform = "scale(1)";
+                        }
+                        if (hudProgressCircle) {
+                            hudProgressCircle.style.stroke = "var(--primary)";
+                        }
+                        appendHUDLog(data.message, "warning");
+                    } else if (data.step === 2) {
+                        updateHUDStep(2, "completed");
+                        updateHUDStep(3, "failed");
+                        updateHUDStep(4, "");
+                        if (hudTimelineBar) hudTimelineBar.style.width = "65%";
+                        if (hudAvatar) {
+                            hudAvatar.className = "fa-solid fa-user-xmark scanner-avatar";
+                            hudAvatar.style.color = "var(--accent-rose)";
+                            hudAvatar.style.transform = "scale(1.1)";
+                        }
+                        if (hudProgressCircle) {
+                            hudProgressCircle.style.stroke = "var(--accent-rose)";
+                        }
+                        appendHUDLog(data.message, "error");
+                    }
+                }
+            })
+            .catch(err => {
+                console.error("Frame recognition error:", err);
+                if (isScanning) {
+                    appendHUDLog(`Pipeline error: ${err.message}`, "error");
+                }
+            });
+        }
+        
+        function updateTimer() {
+            if (secondsLeft <= 0) {
+                stopWebcam(true);
+                return;
+            }
+            
+            secondsLeft--;
+            const mins = Math.floor(secondsLeft / 60);
+            const secs = secondsLeft % 60;
+            if (sessionTimer) {
+                sessionTimer.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        function stopWebcam(isTimeout = false) {
+            if (!isScanning) return;
+            
+            isScanning = false;
+            if (scanInterval) {
+                clearInterval(scanInterval);
+                scanInterval = null;
+            }
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            if (timerBadge) {
+                timerBadge.style.display = "none";
+            }
+            
+            if (webcamStream) {
+                webcamStream.getTracks().forEach(track => track.stop());
+                webcamStream = null;
+            }
+            
+            video.srcObject = null;
+            video.style.display = "none";
+            placeholder.style.display = "flex";
+            laser.style.display = "none";
+            liveBadge.style.display = "none";
+            
+            statusDot.style.background = "var(--accent-rose)";
+            statusDot.style.boxShadow = "0 0 8px var(--accent-rose-glow)";
+            
+            if (isTimeout === true) {
+                statusText.innerText = "Session Ended";
+                logStripText.innerText = "Session time limit reached.";
+                logStripIcon.className = "fa-solid fa-clock";
+                logStripIcon.style.color = "var(--accent-rose)";
+                resetHUD();
+                appendHUDLog("Attendance session ended automatically (Time Out).", "warning");
+                showToast("Session Ended", "The 5-minute attendance class window has expired.", "rose");
+                triggerAutoBroadcast();
+            } else {
+                statusText.innerText = "Attendance Stopped";
+                logStripText.innerText = "Camera stream paused.";
+                logStripIcon.className = "fa-solid fa-pause";
+                logStripIcon.style.color = "var(--accent-rose)";
+                resetHUD();
+                appendHUDLog("Camera stream stopped manually.", "info");
+            }
+        }
+        
+        function triggerAutoBroadcast() {
+            appendHUDLog("Broadcasting auto-alerts to absent parents in background...", "info");
+            
+            // Fire request asynchronously in background
+            fetch("{% url 'broadcast_absentee_email' session.id %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({
+                    subject: "Attendance Alert: Student Absent",
+                    message: "Dear Parent, we wish to inform you that your ward was absent for class \"{{ session.subject }}\" today. Please contact department if this is an error."
+                })
+            });
+            
+            // Instantly notify and redirect to report detail logs
+            showToast("Completing Session", "Sending parent notifications and loading report...", "emerald");
+            setTimeout(() => {
+                window.location.href = "{% url 'session_detail' session.id %}";
+            }, 300);
+        }
+        
+        // 1. Controls Button click bindings
+        btnStop.addEventListener("click", stopWebcam);
+        btnStart.addEventListener("click", startWebcam);
+        
+        const btnFinishAlert = document.getElementById("btn-finish-alert");
+        if (btnFinishAlert) {
+            btnFinishAlert.addEventListener("click", function() {
+                if (confirm("Are you sure you want to finish this attendance session and automatically send Email alerts to all absent parents?")) {
+                    stopWebcam();
+                    triggerAutoBroadcast();
+                }
+            });
+        }
+        
+        btnReset.addEventListener("click", function() {
+            if(confirm("Are you sure you want to reset all attendance check-ins to Absent for this session?")) {
+                fetch("{% url 'reset_session' session.id %}")
+                    .then(res => res.json())
+                    .then(data => {
+                        showToast("Session Reset", "All roster check-ins reset to Absent.", "orange");
+                        fetchStatus();
+                    });
+            }
+        });
+        
+        btnMarkAll.addEventListener("click", function() {
+            if(confirm("Mark all registered students as Present?")) {
+                fetch("{% url 'mark_all_present' session.id %}")
+                    .then(res => res.json())
+                    .then(data => {
+                        showToast("Roster Checked In", "All students marked Present.", "emerald");
+                        fetchStatus();
+                    });
+            }
+        });
+        
+        btnSimulate.addEventListener("click", function() {
+            fetch("{% url 'simulate_recognition_ajax' session.id %}")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast("Simulation Match", `${data.name} (${data.roll_number}) detected by AI.`, "emerald");
+                        logStripText.innerText = `Simulated face match: ${data.name}`;
+                        fetchStatus();
+                    } else {
+                        showToast("Simulation Info", data.message, "blue");
+                    }
+                });
+        });
+        
+        // 2. Search input listeners
+        searchPresent.addEventListener("input", applyFilters);
+        searchAbsent.addEventListener("input", applyFilters);
+        
+        function applyFilters() {
+            const presentQuery = searchPresent.value.toLowerCase().trim();
+            const absentQuery = searchAbsent.value.toLowerCase().trim();
+            
+            // Filter Present list items
+            const presentItems = presentList.querySelectorAll(".roster-item");
+            presentItems.forEach(item => {
+                const nameNode = item.querySelector(".roster-name");
+                const rollNode = item.querySelector(".roster-subinfo");
+                if (nameNode && rollNode) {
+                    const name = nameNode.innerText.toLowerCase();
+                    const roll = rollNode.innerText.toLowerCase();
+                    if (name.includes(presentQuery) || roll.includes(presentQuery)) {
+                        item.style.display = "flex";
+                    } else {
+                        item.style.display = "none";
+                    }
+                }
+            });
+            
+            // Filter Absent list items
+            const absentItems = absentList.querySelectorAll(".roster-item");
+            absentItems.forEach(item => {
+                const nameNode = item.querySelector(".roster-name");
+                const rollNode = item.querySelector(".roster-subinfo");
+                if (nameNode && rollNode) {
+                    const name = nameNode.innerText.toLowerCase();
+                    const roll = rollNode.innerText.toLowerCase();
+                    if (name.includes(absentQuery) || roll.includes(absentQuery)) {
+                        item.style.display = "flex";
+                    } else {
+                        item.style.display = "none";
+                    }
+                }
+            });
+        }
+        
+        // 3. Poll Status AJAX
+        function fetchStatus() {
+            fetch(statusUrl)
+                .then(res => res.json())
+                .then(data => {
+                    presentCount.innerText = data.present_count;
+                    absentCount.innerText = data.absent_count;
+                    
+                    // Populate Present & Absent List
+                    const hasStudents = (data.present.length > 0 || data.absent.length > 0);
+                    
+                    if (!hasStudents) {
+                        presentList.innerHTML = `
+                            <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                                <i class="fa-solid fa-triangle-exclamation" style="color: #ffb300; margin-bottom: 8px; font-size: 1.2rem;"></i><br>
+                                No roster initialized.
+                            </div>`;
+                        absentList.innerHTML = `
+                            <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                                <i class="fa-solid fa-triangle-exclamation" style="color: #ffb300; margin-bottom: 8px; font-size: 1.2rem;"></i><br>
+                                No students registered for {{ session.department }} - {{ session.section }}.
+                            </div>`;
+                    } else {
+                        // Populate Present List
+                        if (data.present.length === 0) {
+                            presentList.innerHTML = `
+                                <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                                    No students present yet.
+                                </div>`;
+                        } else {
+                            let html = '';
+                            data.present.forEach(s => {
+                                if (!lastPresentIds.has(s.student_id) && lastPresentIds.size > 0) {
+                                    showToast("Face Recognized", `${s.name} checked in successfully.`, "emerald");
+                                    logStripText.innerText = `Last checked in: ${s.name} at ${s.time_marked}`;
+                                }
+                                lastPresentIds.add(s.student_id);
+                                
+                                html += `
+                                    <div class="roster-item">
+                                        <div class="roster-info-block">
+                                            <img src="${s.avatar_url}" class="roster-avatar">
+                                            <div class="roster-meta">
+                                                <span class="roster-name">${s.name}</span>
+                                                <span class="roster-subinfo">Roll: ${s.roll_number}</span>
+                                            </div>
+                                        </div>
+                                        <div class="roster-action-block">
+                                            <span class="roster-time">${s.time_marked}</span>
+                                            <span class="roster-confidence">${s.confidence}</span>
+                                            <button class="btn-toggle-status present-btn" onclick="toggleStatus(${s.log_id})">
+                                                Mark Absent
+                                            </button>
+                                        </div>
+                                    </div>`;
+                            });
+                            presentList.innerHTML = html;
+                        }
+                        
+                        // Populate Absent List
+                        if (data.absent.length === 0) {
+                            absentList.innerHTML = `
+                                <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                                    All students are checked in!
+                                </div>`;
+                        } else {
+                            let html = '';
+                            data.absent.forEach(s => {
+                                lastPresentIds.delete(s.student_id);
+                                
+                                let emailBtnHtml = '';
+                                if (s.parent_email) {
+                                    emailBtnHtml = `
+                                        <a href="mailto:${s.parent_email}" class="btn-email-parent" title="Email Parent: ${s.parent_email}">
+                                            <i class="fa-solid fa-envelope"></i> Email
+                                        </a>`;
+                                } else {
+                                    emailBtnHtml = `
+                                        <span class="no-email-badge" title="No parent email registered">
+                                            <i class="fa-solid fa-envelope-slash"></i>
+                                        </span>`;
+                                }
+                                
+                                html += `
+                                    <div class="roster-item">
+                                        <div class="roster-info-block">
+                                            <img src="${s.avatar_url}" class="roster-avatar">
+                                            <div class="roster-meta">
+                                                <span class="roster-name">${s.name}</span>
+                                                <span class="roster-subinfo">Roll: ${s.roll_number}</span>
+                                            </div>
+                                        </div>
+                                        <div class="roster-action-block">
+                                            ${emailBtnHtml}
+                                            <button class="btn-toggle-status absent-btn" onclick="toggleStatus(${s.log_id})">
+                                                Mark Present
+                                            </button>
+                                        </div>
+                                    </div>`;
+                            });
+                            absentList.innerHTML = html;
+                        }
+                    }
+                    
+                    // Reapply user filters on the newly rendered list items
+                    applyFilters();
+                });
+        }
+        
+        // Expose toggleStatus to global scope
+        window.toggleStatus = function(logId) {
+            fetch(`/toggle-status/${logId}/`)
+                .then(res => res.json())
+                .then(data => {
+                    fetchStatus();
+                });
+        };
+        
+        // Floating toast helper
+        function showToast(title, body, typeColor) {
+            const toast = document.createElement("div");
+            toast.style.background = "rgba(18, 16, 32, 0.9)";
+            toast.style.color = "var(--text-primary)";
+            toast.style.border = `1px solid var(--border-card)`;
+            toast.style.borderLeft = `4px solid var(--accent-${typeColor})`;
+            toast.style.borderRadius = "8px";
+            toast.style.padding = "12px 18px";
+            toast.style.marginBottom = "10px";
+            toast.style.width = "300px";
+            toast.style.boxShadow = "0 8px 30px rgba(0,0,0,0.5)";
+            toast.style.backdropFilter = "blur(10px)";
+            toast.style.transition = "all 0.5s ease";
+            
+            toast.innerHTML = `
+                <div style="font-weight:700; font-size:0.85rem; margin-bottom:3px; display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-bell" style="color:var(--accent-${typeColor});"></i> ${title}
+                </div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">${body}</div>
+            `;
+            
+            document.getElementById("toast-container").appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateX(50px)";
+                setTimeout(() => { toast.remove(); }, 500);
+            }, 4000);
+        }
+        
+        // Initial load & Polling trigger
+        fetchStatus();
+        setInterval(fetchStatus, 3000); // Poll roster updates every 3 seconds
+    });
+</script>
+{% endblock %}
+
+

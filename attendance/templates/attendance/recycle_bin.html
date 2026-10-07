@@ -1,0 +1,84 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Recycle Bin | SmartAttend{% endblock %}
+{% block nav_recycle %}active{% endblock %}
+
+{% block content %}
+
+<!-- Header / Navigation Back -->
+<div class="faculty-card" style="padding: 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div class="faculty-avatar" style="background: rgba(244, 63, 94, 0.15); color: #f43f5e;">
+            <i class="fa-solid fa-trash-can" style="font-size: 1.4rem;"></i>
+        </div>
+        <div>
+            <h2 style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; color: #fff;">Recycle Bin</h2>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Manage soft-deleted attendance sessions. You can restore them or permanently delete them.</p>
+        </div>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn-control" style="background: rgba(124, 77, 255, 0.15); border: 1px solid rgba(124, 77, 255, 0.3); color: var(--primary); padding: 8px 16px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; transition: all 0.2s;">
+        <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<!-- Deleted Sessions Card -->
+<div class="card">
+    <div class="card-header" style="border-bottom: 1px solid var(--border-card); padding-bottom: 15px;">
+        <h2 class="card-title" style="color: #f43f5e;">
+            <i class="fa-solid fa-trash-can"></i> Soft-Deleted Sessions
+        </h2>
+    </div>
+    
+    <div class="table-container">
+        {% if sessions %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Subject</th>
+                    <th>Dept / Section</th>
+                    <th>Period</th>
+                    <th>Present / Total</th>
+                    <th>Attendance %</th>
+                    <th>Start Time</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in sessions %}
+                <tr>
+                    <td>{{ session.date }}</td>
+                    <td style="font-weight: 600;">{{ session.subject }}</td>
+                    <td>{{ session.dept_section }}</td>
+                    <td>
+                        <span class="badge-period">{{ session.period }}</span>
+                    </td>
+                    <td style="color: var(--accent-emerald); font-weight: 700;">{{ session.present_total }}</td>
+                    <td style="font-weight: 700;">{{ session.attendance_rate }}</td>
+                    <td>{{ session.start_time }}</td>
+                    <td>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <a href="{% url 'restore_session' session.id %}" class="btn-action-export" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); color: var(--accent-emerald); text-decoration: none; padding: 6px 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                                <i class="fa-solid fa-rotate-left"></i> Restore
+                            </a>
+                            <a href="{% url 'delete_session_permanently' session.id %}" class="btn-action-delete" style="padding: 6px 10px; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; width: auto;" onclick="return confirm('Are you sure you want to PERMANENTLY delete this attendance session? This will permanently delete all associated check-in logs and cannot be undone.');">
+                                <i class="fa-solid fa-trash-can"></i> Delete Permanently
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 50px 20px; color: var(--text-secondary);">
+            <i class="fa-solid fa-trash-arrow-up" style="font-size: 3rem; margin-bottom: 15px; color: rgba(255,255,255,0.1);"></i>
+            <p style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 600; color: #fff;">Recycle Bin is Empty</p>
+            <p style="margin: 6px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">No soft-deleted attendance sessions found.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

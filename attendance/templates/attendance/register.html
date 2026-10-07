@@ -1,0 +1,106 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | SmartAttend</title>
+    <link rel="stylesheet" href="{% static 'attendance/style.css' %}?v=2.9">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="auth-body">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            if (theme !== 'light') {
+                document.body.classList.add('dark-theme');
+            }
+        })();
+    </script>
+
+    <!-- Floating Particles Background Animation -->
+    <div class="bg-animation">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <!-- Centered Register Card -->
+    <div class="auth-card-wrapper">
+        <div class="auth-card" style="margin-top: 40px; margin-bottom: 40px;">
+            <!-- Sign in / Register Switcher Tabs -->
+            <div class="auth-tabs">
+                <a href="{% url 'login' %}" class="auth-tab">
+                    <i class="fa-solid fa-key"></i> Sign in
+                </a>
+                <a href="{% url 'register' %}" class="auth-tab active">
+                    <i class="fa-solid fa-user-plus"></i> Register
+                </a>
+            </div>
+            
+            <!-- Circular Avatar Header -->
+            <div class="auth-avatar-box">
+                <div class="auth-avatar-circle">
+                    <i class="fa-solid fa-user-tie"></i>
+                </div>
+            </div>
+            
+            <!-- Error messages -->
+            {% if error %}
+            <div class="auth-error-alert">
+                <i class="fa-solid fa-triangle-exclamation"></i> {{ error }}
+            </div>
+            {% endif %}
+            
+            <form action="{% url 'register' %}" method="POST">
+                {% csrf_token %}
+                
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label class="auth-label" for="reg-name">Full Name</label>
+                    <input type="text" id="reg-name" name="full_name" class="auth-input" placeholder="Dr.Ramesh" required>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label class="auth-label" for="reg-email">Username or e-mail</label>
+                    <input type="email" id="reg-email" name="email" class="auth-input" placeholder="test6@college.edu" required>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label class="auth-label" for="reg-pass">Password</label>
+                    <input type="password" id="reg-pass" name="password" class="auth-input" placeholder="Password" required>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label class="auth-label" for="reg-dept">Department</label>
+                    <select id="reg-dept" name="department" class="auth-input-select" required>
+                        <option value="" disabled selected>Choose department</option>
+                        {% for dept in departments %}
+                            <option value="{{ dept.code }}">{{ dept.code }} - {{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label class="auth-label" for="reg-confirm">Confirm password</label>
+                    <input type="password" id="reg-confirm" name="confirm_password" class="auth-input" placeholder="Confirm password" required>
+                </div>
+                
+                <button type="submit" class="auth-btn">
+                    Register
+                </button>
+                
+                <div class="auth-footer-links">
+                    <a href="{% url 'login' %}" class="auth-link">sign in</a>
+                </div>
+                
+                <div style="text-align: center; margin-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 15px;">
+                    <a href="/" class="auth-link" style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-arrow-left"></i> Back to Login</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

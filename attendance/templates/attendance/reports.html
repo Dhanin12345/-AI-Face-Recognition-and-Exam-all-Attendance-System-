@@ -1,0 +1,89 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Reports | SmartAttend{% endblock %}
+{% block nav_reports %}active{% endblock %}
+
+{% block content %}
+
+<div style="margin-bottom: 25px;">
+    <h1 style="font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; gap: 10px;">
+        <i class="fa-solid fa-folder-open" style="color: var(--primary);"></i> Historical Attendance Reports
+    </h1>
+    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">
+        Browse and download Excel spreadsheets for all past attendance scanning sessions.
+    </p>
+</div>
+
+{% if reports %}
+    {% for report in reports %}
+    <div class="report-date-block">
+        <!-- Date Grouping Header Badge -->
+        <span class="report-date-header">
+            <i class="fa-regular fa-calendar-days"></i> {{ report.display }}
+        </span>
+        
+        <!-- Sessions Table Card -->
+        <div class="report-table-card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Period</th>
+                            <th>Subject</th>
+                            <th>Section/Dept</th>
+                            <th style="text-align: center;">Present</th>
+                            <th style="text-align: center;">Absent</th>
+                            <th style="text-align: center;">Success Rate</th>
+                            <th>Start Time</th>
+                            <th style="text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in report.sessions %}
+                        <tr>
+                            <td>
+                                <span class="badge-period">{{ session.period }}</span>
+                            </td>
+                            <td style="font-weight: 600;">{{ session.subject }}</td>
+                            <td>{{ session.dept_section }}</td>
+                            <td style="text-align: center; color: var(--accent-emerald); font-weight: 700;">{{ session.present }}</td>
+                            <td style="text-align: center; color: var(--accent-rose); font-weight: 700;">{{ session.absent }}</td>
+                            <td style="text-align: center; font-weight: 700;">{{ session.success_rate }}</td>
+                            <td>{{ session.start_time }}</td>
+                            <td style="text-align: center;">
+                                <div style="display: inline-flex; gap: 8px; align-items: center;">
+                                    <a href="{% url 'session_detail' session.id %}" class="btn-action-export" style="background: rgba(124, 77, 255, 0.15); border-color: rgba(124, 77, 255, 0.3); color: var(--primary);">
+                                        <i class="fa-solid fa-eye"></i> View
+                                    </a>
+                                    <a href="{% url 'export_excel' session.id %}" class="btn-action-export">
+                                        <i class="fa-solid fa-file-excel"></i> Export
+                                    </a>
+                                    <a href="{% url 'delete_session' session.id %}" class="btn-action-delete" style="text-decoration: none; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;" onclick="return confirm('Are you sure you want to delete this attendance session? It will be moved to the Recycle Bin.');">
+                                        <i class="fa-solid fa-trash-can"></i> Delete
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <!-- Empty State -->
+    <div class="card" style="text-align: center; padding: 50px;">
+        <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 15px; color: var(--text-muted);"></i>
+        <h3 style="font-weight: 700; margin-bottom: 8px;">No Session Reports Available</h3>
+        <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto; font-size: 0.9rem;">
+            Once you launch an attendance session on the Dashboard and run the camera scanner, the logs will appear here grouped by date.
+        </p>
+        <a href="{% url 'dashboard' %}" class="btn-submit" style="max-width: 220px; margin: 20px auto 0;">
+            <i class="fa-solid fa-plus"></i> Go to Dashboard
+        </a>
+    </div>
+{% endif %}
+
+{% endblock %}

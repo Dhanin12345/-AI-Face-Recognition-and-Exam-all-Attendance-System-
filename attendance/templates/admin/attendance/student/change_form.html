@@ -1,0 +1,637 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="{% static 'attendance/style.css' %}?v=2.3">
+<style>
+    /* Ensure the progress ring is centered and aligned */
+    .progress-ring {
+        transform: rotate(-90deg);
+        transform-origin: center;
+    }
+    
+    /* Style read-only status and encoding fields to match Image 4 */
+    .field-processing_status .readonly {
+        background: #121020 !important;
+        border: 1px solid #332560 !important;
+        color: #ffffff !important;
+        border-radius: 10px !important;
+        padding: 15px !important;
+        font-family: 'Courier New', Courier, monospace !important;
+        font-size: 0.9rem !important;
+        display: block !important;
+        width: 500px !important;
+        max-width: 100% !important;
+        min-height: 180px !important;
+        white-space: pre-wrap !important;
+        word-break: break-all !important;
+        line-height: 1.4 !important;
+    }
+    
+    .field-encoding .readonly {
+        background: transparent !important;
+        border: none !important;
+        color: #ffffff !important;
+        padding: 0 !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-size: 0.95rem !important;
+        display: inline-block !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+
+<!-- Inline Glassmorphic Progress HUD Panel -->
+<div id="inline-progress-panel" class="inline-progress-card" style="margin: 25px auto; width: 100%; max-width: 800px; background: linear-gradient(135deg, rgba(20, 16, 38, 0.5) 0%, rgba(10, 8, 20, 0.65) 100%); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(124, 77, 255, 0.25); border-radius: 16px; padding: 30px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1); box-sizing: border-box;">
+    <div class="modal-header" style="text-align: center; margin-bottom: 25px;">
+        <i id="modal-icon" class="fa-solid fa-microchip fa-spin modal-header-icon" style="font-size: 2rem; color: var(--primary); filter: drop-shadow(0 0 6px rgba(124, 77, 255, 0.4));"></i>
+        <h3 id="modal-title" style="font-size: 1.4rem; font-weight: 700; margin-top: 10px; margin-bottom: 6px; font-family: 'Outfit', sans-serif;">Registering Face Profile</h3>
+        <p id="modal-desc" style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">Processing deep learning encodings for <span id="modal-student-name" style="color: var(--accent); font-weight: 600;">Student</span></p>
+    </div>
+    
+    <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+        <!-- Unique Circular Face Scanning HUD -->
+        <div class="progress-circle-container" style="position: relative; width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+            <svg class="progress-ring" width="140" height="140" style="transform: rotate(-90deg); transform-origin: center;">
+                <circle class="progress-ring__background" stroke="rgba(255,255,255,0.04)" stroke-width="6" fill="transparent" r="60" cx="70" cy="70"/>
+                <circle class="progress-ring__circle" stroke="var(--primary)" stroke-width="6" fill="transparent" r="60" cx="70" cy="70" style="transition: stroke-dashoffset 0.35s; stroke-linecap: round;"/>
+            </svg>
+            
+            <!-- Inner Scan Target HUD -->
+            <div class="scanner-hud" style="position: absolute; display: flex; align-items: center; justify-content: center; width: 100px; height: 100px;">
+                <i id="hud-avatar" class="fa-solid fa-user-astronaut scanner-avatar" style="font-size: 2.2rem; color: var(--text-secondary); transition: all 0.3s ease;"></i>
+                <div id="hud-laser" class="scanner-laser"></div>
+            </div>
+            
+            <div class="progress-percentage-hud" style="position: absolute; bottom: -20px; font-size: 1.1rem; font-weight: 800; font-family: 'Outfit', sans-serif; color: #ffffff;"><span id="progress-percent-val">0</span>%</div>
+        </div>
+        
+        <div id="modal-status-text" class="modal-status-message" style="margin-top: 15px; font-size: 0.95rem; font-weight: 600; color: #ffb300; text-align: center; text-shadow: 0 0 8px rgba(255, 179, 0, 0.25);">Queued for processing...</div>
+        
+        <!-- Unique Horizontal Step Nodes Timeline -->
+        <div class="timeline-steps-container" style="width: 100%; max-width: 600px; margin: 15px 0;">
+            <div class="timeline-line">
+                <div id="timeline-bar" class="timeline-line-progress"></div>
+            </div>
+            <div class="timeline-step" id="step-node-1">
+                <div class="step-node-circle"><i class="fa-solid fa-database"></i></div>
+                <span class="step-node-title">Record</span>
+            </div>
+            <div class="timeline-step" id="step-node-2">
+                <div class="step-node-circle"><i class="fa-solid fa-file-image"></i></div>
+                <span class="step-node-title">Analysis</span>
+            </div>
+            <div class="timeline-step" id="step-node-3">
+                <div class="step-node-circle"><i class="fa-solid fa-brain"></i></div>
+                <span class="step-node-title">FaceNet</span>
+            </div>
+            <div class="timeline-step" id="step-node-4">
+                <div class="step-node-circle"><i class="fa-solid fa-network-wired"></i></div>
+                <span class="step-node-title">LBPH</span>
+            </div>
+        </div>
+        
+        <!-- AI Diagnostic Log Terminal Console -->
+        <div class="log-terminal" id="diagnostic-console" style="width: 100%; max-width: 600px;">
+            <div class="log-line success">&gt; AI pipeline initialization... ready.</div>
+        </div>
+    </div>
+    
+    <div class="modal-footer-actions" id="modal-footer-actions" style="display: none; text-align: center; margin-top: 25px;">
+        <button type="button" id="btn-close-modal" class="btn-submit" style="background: var(--primary-gradient); width: 140px; display: inline-flex; justify-content: center; height: 40px; padding: 0; align-items: center; border-radius: 8px; font-weight: 700; color: #ffffff; border: none; cursor: pointer;">Dismiss</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Move inline progress panel directly above the submit actions row
+        const inlinePanel = document.getElementById("inline-progress-panel");
+        const submitRow = document.querySelector(".submit-row");
+        if (inlinePanel && submitRow) {
+            submitRow.parentNode.insertBefore(inlinePanel, submitRow);
+        }
+
+        const photoInput = document.getElementById("id_photo");
+        if (photoInput) {
+            const formRow = photoInput.closest(".form-row");
+            
+            // Create container for buttons
+            const container = document.createElement("div");
+            container.style.display = "flex";
+            container.style.gap = "10px";
+            container.style.marginTop = "8px";
+            container.style.maxWidth = "100%";
+            
+            // Custom choose button wrapper
+            const fileWrapper = document.createElement("div");
+            fileWrapper.className = "file-upload-wrapper";
+            fileWrapper.style.flex = "1";
+            fileWrapper.style.margin = "0";
+            
+            // Hide standard file input inline
+            photoInput.className = "file-upload-input";
+            photoInput.style.position = "absolute";
+            photoInput.style.opacity = "0";
+            photoInput.style.width = "100%";
+            photoInput.style.height = "100%";
+            photoInput.style.cursor = "pointer";
+            photoInput.style.zIndex = "2";
+            
+            const fileBtn = document.createElement("div");
+            fileBtn.className = "file-upload-btn";
+            fileBtn.id = "upload-btn-label";
+            fileBtn.style.height = "40px";
+            fileBtn.style.fontSize = "0.85rem";
+            fileBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Choose File';
+            
+            fileWrapper.appendChild(photoInput);
+            fileWrapper.appendChild(fileBtn);
+            
+            // Camera button
+            const camBtn = document.createElement("button");
+            camBtn.type = "button";
+            camBtn.id = "btn-open-camera";
+            camBtn.className = "btn-panel-action green-btn";
+            camBtn.style.flex = "1";
+            camBtn.style.height = "40px";
+            camBtn.style.display = "flex";
+            camBtn.style.alignItems = "center";
+            camBtn.style.justifyContent = "center";
+            camBtn.style.gap = "8px";
+            camBtn.style.borderRadius = "10px";
+            camBtn.style.fontSize = "0.85rem";
+            camBtn.style.margin = "0";
+            camBtn.innerHTML = '<i class="fa-solid fa-camera"></i> Use Camera';
+            
+            container.appendChild(fileWrapper);
+            container.appendChild(camBtn);
+            
+            // Webcam preview panel
+            const camPanel = document.createElement("div");
+            camPanel.id = "webcam-capture-panel";
+            camPanel.style.display = "none";
+            camPanel.style.marginTop = "15px";
+            camPanel.style.background = "rgba(0,0,0,0.4)";
+            camPanel.style.border = "1px solid var(--border-card)";
+            camPanel.style.borderRadius = "15px";
+            camPanel.style.padding = "15px";
+            camPanel.style.textAlign = "center";
+            camPanel.style.maxWidth = "100%";
+            camPanel.style.position = "relative";
+            camPanel.style.overflow = "hidden";
+            
+            camPanel.innerHTML = `
+                <div style="position: relative; width: 100%; aspect-ratio: 16/9; max-height: 480px; background: #000; border-radius: 10px; overflow: hidden; border: 1px solid var(--border-card);">
+                    <video id="webcam-preview-feed" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                    <div class="scanner-laser" style="animation-duration: 3s;"></div>
+                </div>
+                <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: center;">
+                    <button type="button" id="btn-capture-snap" class="btn-control green" style="padding: 8px 16px; font-size: 0.8rem; border-radius: 8px; margin: 0;">
+                        <i class="fa-solid fa-circle"></i> Snap Photo
+                    </button>
+                    <button type="button" id="btn-close-camera" class="btn-control red" style="padding: 8px 16px; font-size: 0.8rem; border-radius: 8px; margin: 0;">
+                        <i class="fa-solid fa-xmark"></i> Close Camera
+                    </button>
+                </div>
+            `;
+            
+            // Preview box
+            const previewBox = document.createElement("div");
+            previewBox.id = "avatar-preview-box";
+            previewBox.className = "preview-avatar-container";
+            previewBox.style.display = "none";
+            previewBox.style.marginTop = "15px";
+            
+            const previewImg = document.createElement("img");
+            previewImg.id = "avatar-preview";
+            previewImg.className = "preview-avatar";
+            previewImg.alt = "Face Preview";
+            
+            previewBox.appendChild(previewImg);
+            
+            // Re-render field layout
+            const fileUploadParagraph = formRow.querySelector("p.file-upload") || formRow.querySelector("div");
+            if (fileUploadParagraph) {
+                // Keep the "Currently:" block if it exists (for editing)
+                const currentlyText = fileUploadParagraph.innerHTML.split("<input")[0];
+                const hasCurrently = currentlyText.includes("Currently:");
+                
+                const infoDiv = document.createElement("div");
+                infoDiv.style.fontSize = "0.8rem";
+                infoDiv.style.color = "var(--text-secondary)";
+                infoDiv.style.marginBottom = "5px";
+                if (hasCurrently) {
+                    infoDiv.innerHTML = currentlyText;
+                }
+                
+                fileUploadParagraph.innerHTML = "";
+                fileUploadParagraph.appendChild(infoDiv);
+                fileUploadParagraph.appendChild(container);
+                fileUploadParagraph.appendChild(camPanel);
+                fileUploadParagraph.appendChild(previewBox);
+            }
+            
+            // Webcam script binding
+            const btnOpenCamera = document.getElementById("btn-open-camera");
+            const webcamCapturePanel = document.getElementById("webcam-capture-panel");
+            const webcamPreviewFeed = document.getElementById("webcam-preview-feed");
+            const btnCaptureSnap = document.getElementById("btn-capture-snap");
+            const btnCloseCamera = document.getElementById("btn-close-camera");
+            let webcamStream = null;
+
+            btnOpenCamera.addEventListener("click", async function() {
+                try {
+                    webcamStream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: 640, height: 480, facingMode: "user" }
+                    });
+                    webcamPreviewFeed.srcObject = webcamStream;
+                    webcamCapturePanel.style.display = "block";
+                    btnOpenCamera.disabled = true;
+                } catch (err) {
+                    console.error("Error accessing camera:", err);
+                    alert("Could not access your camera. Please ensure permissions are granted.");
+                }
+            });
+
+            function stopWebcam() {
+                if (webcamStream) {
+                    webcamStream.getTracks().forEach(track => track.stop());
+                    webcamStream = null;
+                }
+                webcamPreviewFeed.srcObject = null;
+                webcamCapturePanel.style.display = "none";
+                btnOpenCamera.disabled = false;
+            }
+
+            btnCloseCamera.addEventListener("click", stopWebcam);
+
+            btnCaptureSnap.addEventListener("click", function() {
+                if (!webcamStream) return;
+                
+                const canvas = document.createElement("canvas");
+                canvas.width = webcamPreviewFeed.videoWidth || 640;
+                canvas.height = webcamPreviewFeed.videoHeight || 480;
+                
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(webcamPreviewFeed, 0, 0, canvas.width, canvas.height);
+                
+                canvas.toBlob(function(blob) {
+                    if (blob) {
+                        const file = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
+                        const container = new DataTransfer();
+                        container.items.add(file);
+                        photoInput.files = container.files;
+                        
+                        fileBtn.innerHTML = `<i class="fa-solid fa-camera"></i> camera_capture.jpg`;
+                        
+                        const imageUrl = URL.createObjectURL(blob);
+                        previewImg.src = imageUrl;
+                        previewBox.style.display = "flex";
+                        
+                        stopWebcam();
+                    }
+                }, "image/jpeg", 0.95);
+            });
+
+            photoInput.addEventListener("change", function() {
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    fileBtn.innerHTML = `<i class="fa-solid fa-file-image"></i> ${file.name}`;
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImg.src = e.target.result;
+                        previewBox.style.display = "flex";
+                    }
+                    reader.readAsDataURL(file);
+                    
+                    stopWebcam();
+                }
+            });
+        }
+        
+        // Form submit hijack for AJAX step-by-step progress tracking wizard
+        const adminForm = document.getElementById("student_form");
+        if (adminForm) {
+            const studentPhoto = document.getElementById("id_photo");
+            
+            adminForm.addEventListener("submit", function(e) {
+                // If form is already marked as ready to submit synchronously, let it go
+                if (adminForm.getAttribute("data-submitting") === "true") {
+                    return;
+                }
+                
+                // For editing, photo is optional. For adding, photo is required.
+                const isAdd = window.location.pathname.includes("add");
+                if (isAdd && (!studentPhoto || studentPhoto.files.length === 0)) {
+                    // Let Django's default validation trigger if a required photo is missing
+                    return;
+                }
+                
+                e.preventDefault();
+                
+                const studentName = document.getElementById("id_name").value || "Student";
+                document.getElementById("modal-student-name").textContent = studentName;
+                resetProgressModal();
+                document.getElementById("inline-progress-panel").style.display = "block";
+                document.getElementById("inline-progress-panel").scrollIntoView({ behavior: "smooth" });
+                
+                // Submit form via AJAX
+                const formData = new FormData(adminForm);
+                // Append the save button name
+                const activeBtn = document.activeElement;
+                if (activeBtn && activeBtn.name) {
+                    formData.append(activeBtn.name, activeBtn.value || "1");
+                } else {
+                    formData.append("_save", "Save");
+                }
+                
+                fetch(window.location.href, {
+                    method: "POST",
+                    body: formData,
+                    headers: {
+                        "X-CSRFToken": formData.get("csrfmiddlewaretoken")
+                    }
+                })
+                .then(res => {
+                    // Find student ID
+                    let studentId = null;
+                    const pathParts = window.location.pathname.split("/");
+                    const changeIndex = pathParts.indexOf("change");
+                    if (changeIndex !== -1) {
+                        studentId = pathParts[changeIndex - 1];
+                    }
+                    
+                    let attempts = 0;
+                    const maxAttempts = 50;
+                    let lastStatusText = "";
+                    let intervalId = null;
+                    
+                    function startPolling(id) {
+                        intervalId = setInterval(() => {
+                            attempts++;
+                            if (attempts > maxAttempts) {
+                                clearInterval(intervalId);
+                                handleProcessFailure("Timeout: calculations took too long.");
+                                return;
+                            }
+                            
+                            fetch(`/student-status/${id}/`)
+                            .then(r => r.json())
+                            .then(statusData => {
+                                const step = statusData.step;
+                                const percent = statusData.percent;
+                                const text = statusData.text;
+                                
+                                setRingProgress(percent);
+                                document.getElementById("modal-status-text").textContent = text;
+                                
+                                if (text && text !== lastStatusText) {
+                                    let logType = "info";
+                                    if (step === 5) logType = "success";
+                                    else if (step === -1) logType = "error";
+                                    else if (step >= 4) logType = "success";
+                                    
+                                    appendConsoleLog(text, logType);
+                                    
+                                    if (step === 2) {
+                                        appendConsoleLog("Localization: Frontal face Cascade scanning initiated...", "info");
+                                    } else if (step === 3) {
+                                        appendConsoleLog("FaceNet Model: Computing 512-dimensional vector. Weights loaded.", "info");
+                                    } else if (step === 4) {
+                                        appendConsoleLog("Local training: Recomputing LBPH histogram patterns...", "info");
+                                    }
+                                    lastStatusText = text;
+                                }
+                                
+                                // Update timeline
+                                const timelineBar = document.getElementById("timeline-bar");
+                                if (timelineBar) {
+                                    const timelineWidths = {0: 0, 1: 0, 2: 33, 3: 66, 4: 100, 5: 100, "-1": 100};
+                                    timelineBar.style.width = `${timelineWidths[step] || 0}%`;
+                                }
+                                
+                                for (let i = 1; i <= 4; i++) {
+                                    if (step === -1) continue;
+                                    if (step > i || step === 5) {
+                                        updateTimelineStepNode(i, "completed");
+                                    } else if (step === i || (step === 0 && i === 1)) {
+                                        updateTimelineStepNode(i, "active");
+                                    } else {
+                                        const node = document.getElementById(`step-node-${i}`);
+                                        if (node) node.className = "timeline-step";
+                                    }
+                                }
+                                
+                                // Inner HUD transitions
+                                const hudAvatar = document.getElementById("hud-avatar");
+                                const hudLaser = document.getElementById("hud-laser");
+                                if (hudAvatar && hudLaser) {
+                                    if (step === 1 || step === 2) {
+                                        hudAvatar.style.color = "var(--accent-blue)";
+                                        hudLaser.style.background = "var(--accent-blue)";
+                                    } else if (step === 3 || step === 4) {
+                                        hudAvatar.style.color = "var(--primary)";
+                                        hudLaser.style.background = "var(--primary)";
+                                        hudAvatar.style.transform = "scale(1.05)";
+                                    }
+                                }
+                                
+                                if (statusData.has_encoding || step === 5) {
+                                    clearInterval(intervalId);
+                                    handleProcessSuccess(studentName);
+                                } else if (step === -1) {
+                                    clearInterval(intervalId);
+                                    handleProcessFailure(text);
+                                }
+                            })
+                            .catch(err => console.error("Poll failed:", err));
+                        }, 1200);
+                    }
+                    
+                    if (studentId) {
+                        startPolling(studentId);
+                    } else {
+                        // New student, poll /system-stats/ to get the new student ID
+                        setTimeout(() => {
+                            fetch("/system-stats/")
+                            .then(r => r.json())
+                            .then(statsData => {
+                                const recent = statsData.recent_students || [];
+                                const match = recent.find(s => s.name.toLowerCase() === studentName.toLowerCase());
+                                if (match) {
+                                    studentId = match.id;
+                                    startPolling(studentId);
+                                } else if (recent.length > 0) {
+                                    studentId = recent[0].id;
+                                    startPolling(studentId);
+                                } else {
+                                    handleProcessFailure("Process tracking failed: ID untraceable.");
+                                }
+                            })
+                            .catch(err => {
+                                console.error("Stats queue fail:", err);
+                                handleProcessFailure("Queue connection error.");
+                            });
+                        }, 1000);
+                    }
+                })
+                .catch(err => {
+                    console.error("Submit failed:", err);
+                    handleProcessFailure("Form transmission error.");
+                });
+            });
+        }
+        
+        // Progress HUD utilities
+        const progressRingCircle = document.querySelector('.progress-ring__circle');
+        let circumference = 0;
+        if (progressRingCircle) {
+            const radius = parseFloat(progressRingCircle.getAttribute('r')) || 60;
+            circumference = radius * 2 * Math.PI;
+            progressRingCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+            progressRingCircle.style.strokeDashoffset = `${circumference}`;
+        }
+        
+        function setRingProgress(percent) {
+            if (progressRingCircle && circumference) {
+                const offset = circumference - (percent / 100) * circumference;
+                progressRingCircle.style.strokeDashoffset = offset;
+            }
+            const valSpan = document.getElementById("progress-percent-val");
+            if (valSpan) valSpan.textContent = Math.round(percent);
+        }
+        
+        function updateTimelineStepNode(stepNum, status) {
+            const node = document.getElementById(`step-node-${stepNum}`);
+            if (node) node.className = `timeline-step ${status}`;
+        }
+        
+        function appendConsoleLog(message, type = "info") {
+            const consoleBox = document.getElementById("diagnostic-console");
+            if (consoleBox) {
+                const line = document.createElement("div");
+                line.className = `log-line ${type}`;
+                line.textContent = `> ${message}`;
+                consoleBox.appendChild(line);
+                consoleBox.scrollTop = consoleBox.scrollHeight;
+            }
+        }
+        
+        function resetProgressModal() {
+            setRingProgress(5);
+            document.getElementById("modal-status-text").textContent = "Queued for processing...";
+            document.getElementById("modal-status-text").style.color = "var(--text-primary)";
+            document.getElementById("modal-title").textContent = "Registering Face Profile";
+            
+            const headerIcon = document.getElementById("modal-icon");
+            headerIcon.className = "fa-solid fa-microchip fa-spin modal-header-icon";
+            headerIcon.style.color = "var(--primary)";
+            
+            const hudAvatar = document.getElementById("hud-avatar");
+            if (hudAvatar) {
+                hudAvatar.className = "fa-solid fa-user-astronaut scanner-avatar";
+                hudAvatar.style.color = "var(--text-muted)";
+                hudAvatar.style.transform = "scale(1)";
+            }
+            
+            const hudLaser = document.getElementById("hud-laser");
+            if (hudLaser) {
+                hudLaser.style.display = "block";
+                hudLaser.style.background = "var(--accent-blue)";
+            }
+            
+            if (progressRingCircle) {
+                progressRingCircle.style.stroke = "var(--primary)";
+            }
+            
+            // Reset console
+            const consoleBox = document.getElementById("diagnostic-console");
+            if (consoleBox) consoleBox.innerHTML = '<div class="log-line success">&gt; AI pipeline initialization... ready.</div>';
+            
+            // Reset timeline steps
+            for (let i = 1; i <= 4; i++) {
+                updateTimelineStepNode(i, "");
+            }
+            document.getElementById("timeline-bar").style.width = "0%";
+            document.getElementById("modal-footer-actions").style.display = "none";
+        }
+        
+        function handleProcessSuccess(name) {
+            setRingProgress(100);
+            document.getElementById("modal-status-text").textContent = "Profile successfully activated!";
+            document.getElementById("modal-status-text").style.color = "var(--accent-emerald)";
+            document.getElementById("modal-title").textContent = "Registration Successful!";
+            
+            const headerIcon = document.getElementById("modal-icon");
+            headerIcon.className = "fa-solid fa-circle-check modal-header-icon";
+            headerIcon.style.color = "var(--accent-emerald)";
+            
+            const hudAvatar = document.getElementById("hud-avatar");
+            if (hudAvatar) {
+                hudAvatar.className = "fa-solid fa-user-check scanner-avatar";
+                hudAvatar.style.color = "var(--accent-emerald)";
+                hudAvatar.style.transform = "scale(1.15)";
+            }
+            
+            const hudLaser = document.getElementById("hud-laser");
+            if (hudLaser) hudLaser.style.display = "none";
+            
+            if (progressRingCircle) {
+                progressRingCircle.style.stroke = "var(--accent-emerald)";
+            }
+            
+            for (let i = 1; i <= 4; i++) {
+                updateTimelineStepNode(i, "completed");
+            }
+            document.getElementById("timeline-bar").style.width = "100%";
+            
+            setTimeout(() => {
+                window.location.href = "/admin/attendance/student/";
+            }, 1800);
+        }
+        
+        function handleProcessFailure(errorMsg) {
+            document.getElementById("modal-status-text").textContent = errorMsg || "Face registration failed.";
+            document.getElementById("modal-status-text").style.color = "var(--accent-rose)";
+            document.getElementById("modal-title").textContent = "Registration Failed";
+            
+            const headerIcon = document.getElementById("modal-icon");
+            headerIcon.className = "fa-solid fa-circle-exclamation modal-header-icon";
+            headerIcon.style.color = "var(--accent-rose)";
+            
+            const hudAvatar = document.getElementById("hud-avatar");
+            if (hudAvatar) {
+                hudAvatar.className = "fa-solid fa-user-xmark scanner-avatar";
+                hudAvatar.style.color = "var(--accent-rose)";
+                hudAvatar.style.transform = "scale(1.1)";
+            }
+            
+            const hudLaser = document.getElementById("hud-laser");
+            if (hudLaser) hudLaser.style.display = "none";
+            
+            if (progressRingCircle) {
+                progressRingCircle.style.stroke = "var(--accent-rose)";
+            }
+            
+            for (let i = 1; i <= 4; i++) {
+                const node = document.getElementById(`step-node-${i}`);
+                if (node && node.classList.contains("active")) {
+                    updateTimelineStepNode(i, "failed");
+                }
+            }
+            
+            document.getElementById("modal-footer-actions").style.display = "block";
+        }
+        
+        // Close modal button
+        document.getElementById("btn-close-modal").addEventListener("click", function() {
+            document.getElementById("inline-progress-panel").style.display = "none";
+        });
+    });
+</script>
+{% endblock %}

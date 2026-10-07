@@ -1,0 +1,218 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div id="content-main" style="width: 100%;">
+    <!-- Welcome Banner (ZenHabit Style) -->
+    <div class="admin-welcome-banner" style="background: linear-gradient(135deg, rgba(46, 204, 113, 0.12) 0%, rgba(9, 132, 227, 0.05) 100%); border: 1px solid rgba(46, 204, 113, 0.18); border-radius: 20px; padding: 25px; margin-bottom: 25px; position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: center;">
+        <div style="flex-grow: 1;">
+            <h2 style="font-size: 1.6rem; font-weight: 700; color: #2d3436; margin: 0 0 5px 0; display: flex; align-items: center; gap: 8px;">
+                Good Day ☀️, Admin!
+            </h2>
+            <p id="admin-live-date" style="color: #636e72; font-size: 0.9rem; margin: 0;">Loading date...</p>
+        </div>
+        <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Dark/Light Mode">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+    </div>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Render Live Date in Header
+            const dateEl = document.getElementById("admin-live-date");
+            if (dateEl) {
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                dateEl.textContent = new Date().toLocaleDateString('en-US', options);
+            }
+        });
+    </script>
+
+    <!-- 1. Stats Counter Widgets Header Row -->
+    <div class="admin-stats-container">
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon purple">
+                <i class="fa-solid fa-user-graduate"></i>
+            </div>
+            <div class="admin-stat-info">
+                <span class="admin-stat-value" id="stats-total-students">-</span>
+                <span class="admin-stat-label">Total Enrolled</span>
+            </div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon emerald">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div class="admin-stat-info">
+                <span class="admin-stat-value" id="stats-active-students">-</span>
+                <span class="admin-stat-label">Active Faces</span>
+            </div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon blue">
+                <i class="fa-solid fa-calendar-days"></i>
+            </div>
+            <div class="admin-stat-info">
+                <span class="admin-stat-value" id="stats-total-sessions">-</span>
+                <span class="admin-stat-label">Sessions Run</span>
+            </div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div class="admin-stat-icon rose">
+                <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <div class="admin-stat-info">
+                <span class="admin-stat-value" id="stats-avg-attendance">-</span>
+                <span class="admin-stat-label">Avg Attendance</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Main Dashboard Content Grid -->
+    <div class="admin-dashboard-grid">
+        
+        <!-- Left Side: App Model Cards -->
+        <div class="admin-main-section">
+            {% if app_list %}
+                {% for app in app_list %}
+                <div class="admin-app-card app-{{ app.app_label }}">
+                    <div class="admin-app-header">
+                        {% if app.name == 'Attendance' %}
+                            <i class="fa-solid fa-clock" style="color: var(--primary);"></i>
+                        {% elif app.name == 'Authentication and Authorization' %}
+                            <i class="fa-solid fa-shield-halved" style="color: var(--accent-blue);"></i>
+                        {% else %}
+                            <i class="fa-solid fa-folder" style="color: var(--accent-blue);"></i>
+                        {% endif %}
+                        {{ app.name }}
+                    </div>
+                    
+                    <div class="admin-models-list">
+                        {% for model in app.models %}
+                        <div class="admin-model-row">
+                            <a href="{{ model.admin_url }}" class="admin-model-name">
+                                {% if model.object_name == 'Student' %}
+                                    <i class="fa-solid fa-user-astronaut" style="color: var(--accent-blue); width: 20px;"></i>
+                                {% elif model.object_name == 'AttendanceLog' %}
+                                    <i class="fa-solid fa-fingerprint" style="color: var(--accent-blue); width: 20px;"></i>
+                                {% elif model.object_name == 'AttendanceSession' %}
+                                    <i class="fa-solid fa-video" style="color: var(--accent-blue); width: 20px;"></i>
+                                {% elif model.object_name == 'Group' %}
+                                    <i class="fa-solid fa-users-gear" style="color: var(--accent-blue); width: 20px;"></i>
+                                {% elif model.object_name == 'User' %}
+                                    <i class="fa-solid fa-user-shield" style="color: var(--accent-blue); width: 20px;"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-circle" style="color: var(--accent-blue); width: 20px; font-size: 0.5rem;"></i>
+                                {% endif %}
+                                {{ model.name }}
+                            </a>
+                            
+                            <div class="admin-model-actions">
+                                {% if model.add_url %}
+                                    <a href="{{ model.add_url }}" class="addlink">Add</a>
+                                {% endif %}
+                                {% if model.admin_url %}
+                                    <a href="{{ model.admin_url }}" class="changelink">Change</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>{% translate "You don’t have permission to view or edit anything." %}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Right Side: Sidebar Widgets -->
+        <div class="admin-sidebar-section">
+            
+            <!-- Face Encoding Monitor Panel -->
+            <div class="admin-monitor-card">
+                <h3 class="admin-monitor-title">
+                    <i class="fa-solid fa-microchip fa-spin" style="color: var(--accent-blue);"></i> Face Processing Queue
+                </h3>
+                <div class="admin-monitor-list" id="admin-queue-list">
+                    <div style="text-align: center; padding: 25px; color: var(--text-secondary); font-size: 0.8rem;">
+                        <i class="fa-solid fa-circle-notch fa-spin" style="margin-right: 8px;"></i> Initializing monitor stream...
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+        
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Poll system statistics
+        function fetchSystemStats() {
+            fetch("/system-stats/")
+            .then(res => res.json())
+            .then(data => {
+                // Populate Counter widgets
+                document.getElementById("stats-total-students").textContent = data.total_students;
+                document.getElementById("stats-active-students").textContent = data.active_students;
+                document.getElementById("stats-total-sessions").textContent = data.total_sessions;
+                document.getElementById("stats-avg-attendance").textContent = data.avg_attendance + "%";
+                
+                // Populate Queue List
+                const queueList = document.getElementById("admin-queue-list");
+                if (queueList) {
+                    queueList.innerHTML = "";
+                    const recent = data.recent_students || [];
+                    
+                    if (recent.length === 0) {
+                        queueList.innerHTML = `<div style="text-align: center; padding: 25px; color: var(--text-secondary); font-size: 0.8rem;">No recent activities logged.</div>`;
+                        return;
+                    }
+                    
+                    recent.forEach(student => {
+                        const item = document.createElement("div");
+                        item.className = "admin-monitor-item";
+                        item.style.marginBottom = "8px";
+                        
+                        let avatarHtml = `<i class="fa-solid fa-user-astronaut" style="font-size: 1.5rem; color: var(--text-muted); margin-right: 10px;"></i>`;
+                        if (student.photo_url) {
+                            avatarHtml = `<img src="${student.photo_url}" class="admin-monitor-avatar" style="margin-right: 10px;" alt="Face">`;
+                        }
+                        
+                        let badgeHtml = "";
+                        if (student.has_encoding || student.step === 5) {
+                            badgeHtml = `<span class="badge-status encoded" style="padding: 2px 8px; font-size: 0.6rem;"><i class="fa-solid fa-circle-check"></i> Active</span>`;
+                        } else if (student.step === -1) {
+                            badgeHtml = `<span class="badge-status failed" style="padding: 2px 8px; font-size: 0.6rem; background: rgba(255, 61, 0, 0.1); color: #ff3d00;"><i class="fa-solid fa-triangle-exclamation"></i> Fail</span>`;
+                        } else {
+                            badgeHtml = `<span class="badge-status processing" style="padding: 2px 8px; font-size: 0.6rem; background: rgba(255, 179, 0, 0.08); color: #ffb300;"><i class="fa-solid fa-spinner fa-spin"></i> ${student.percent}%</span>`;
+                        }
+                        
+                        item.innerHTML = `
+                            <div class="admin-monitor-user">
+                                ${avatarHtml}
+                                <div>
+                                    <div class="admin-monitor-name">${student.name}</div>
+                                    <div class="admin-monitor-dept">${student.department} - ${student.section}</div>
+                                </div>
+                            </div>
+                            ${badgeHtml}
+                        `;
+                        queueList.appendChild(item);
+                    });
+                }
+            })
+            .catch(err => console.error("Error fetching system stats:", err));
+        }
+        
+        fetchSystemStats();
+        setInterval(fetchSystemStats, 3000); // Update stats/queue list every 3s
+    });
+</script>
+{% endblock %}

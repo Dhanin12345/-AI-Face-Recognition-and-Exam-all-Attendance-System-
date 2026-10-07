@@ -1,0 +1,816 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Exam Scanner | SmartAttend{% endblock %}
+{% block nav_exam %}active{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .progress-ring {
+        transform: rotate(-90deg);
+        transform-origin: center;
+    }
+    .progress-ring__circle {
+        transition: stroke-dashoffset 0.3s;
+        stroke-linecap: round;
+    }
+    .timeline-steps-container {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+    .timeline-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        z-index: 2;
+        position: relative;
+    }
+    .step-node-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #121020;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        transition: all 0.3s ease;
+    }
+    .timeline-step.active .step-node-circle {
+        border-color: var(--primary);
+        color: var(--primary);
+        box-shadow: 0 0 10px rgba(124, 77, 255, 0.4);
+    }
+    .timeline-step.completed .step-node-circle {
+        border-color: var(--accent-emerald);
+        color: var(--accent-emerald);
+        background: rgba(16, 185, 129, 0.1);
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+    }
+    .timeline-step.failed .step-node-circle {
+        border-color: var(--accent-rose);
+        color: var(--accent-rose);
+        background: rgba(244, 63, 94, 0.1);
+        box-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
+    }
+    .timeline-step-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        transition: color 0.3s;
+    }
+    .timeline-step.active .timeline-step-title {
+        color: var(--primary);
+    }
+    .timeline-step.completed .timeline-step-title {
+        color: var(--accent-emerald);
+    }
+    .timeline-step.failed .timeline-step-title {
+        color: var(--accent-rose);
+    }
+    .log-line {
+        margin-bottom: 4px;
+        line-height: 1.4;
+    }
+    .log-line.success {
+        color: var(--accent-emerald);
+    }
+    .log-line.error {
+        color: var(--accent-rose);
+    }
+    .log-line.warning {
+        color: #ffb300;
+    }
+    .pending-student-card.selected-target {
+        border-color: var(--accent-blue) !important;
+        background: rgba(0, 229, 255, 0.05) !important;
+        box-shadow: 0 0 10px rgba(0, 229, 255, 0.25) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Controls Bar -->
+<div class="live-controls-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 25px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 12px; padding: 15px; flex-wrap: wrap;">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn-control green" id="btn-start" style="background: rgba(0, 230, 118, 0.12); color: var(--accent-emerald); border: 1px solid rgba(0, 230, 118, 0.25); padding: 10px 20px; font-weight: 700; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+            <i class="fa-solid fa-play"></i> Start Scanner
+        </button>
+        <button class="btn-control red" id="btn-stop" style="background: rgba(255, 61, 0, 0.12); color: var(--accent-rose); border: 1px solid rgba(255, 61, 0, 0.25); padding: 10px 20px; font-weight: 700; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;" disabled>
+            <i class="fa-solid fa-stop"></i> Stop Scanner
+        </button>
+        <button class="btn-control orange" id="btn-reset" style="background: rgba(255, 145, 0, 0.12); color: #ff9100; border: 1px solid rgba(255, 145, 0, 0.25); padding: 10px 20px; font-weight: 700; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+            <i class="fa-solid fa-rotate-left"></i> Reset Roster
+        </button>
+        <button class="btn-control blue" id="btn-finish" style="background: rgba(0, 229, 255, 0.12); color: var(--accent-blue); border: 1px solid rgba(0, 229, 255, 0.25); padding: 10px 20px; font-weight: 700; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(0, 229, 255, 0.2)'" onmouseout="this.style.background='rgba(0, 229, 255, 0.12)'">
+            <i class="fa-solid fa-circle-check"></i> Finish
+        </button>
+    </div>
+    
+    <div class="status-indicator" style="display: flex; align-items: center; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="status-dot" id="status-dot" style="width: 10px; height: 10px; border-radius: 50%; background: var(--accent-rose); box-shadow: 0 0 8px var(--accent-rose);"></div>
+            <span id="status-text" style="font-weight: 600; color: var(--text-primary);">Scanner Offline</span>
+        </div>
+        <div id="timer-badge" style="display: none; align-items: center; gap: 6px; background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.2); padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; color: var(--accent-blue);">
+            <i class="fa-solid fa-clock"></i> <span id="session-timer">05:00</span>
+        </div>
+    </div>
+</div>
+
+<!-- Main Grid -->
+<div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 30px; margin-bottom: 45px; align-items: start;">
+    
+    <!-- LEFT: Camera & HUD -->
+    <div>
+        <!-- Main Video Feed Card -->
+        <div class="card" style="padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); margin-bottom: 25px;">
+            <div class="card-header" style="margin-bottom: 12px; border-bottom: none; padding-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h2 class="card-title" style="font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-camera"></i> Live Identity Verification
+                    </h2>
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Roster: {{ exam.subject }} ({{ exam.exam_code }}) | Time: {{ exam.start_time|time:"H:i" }}{% if exam.end_time %} - {{ exam.end_time|time:"H:i" }}{% endif %}</span>
+                </div>
+            </div>
+            
+            <div class="webcam-container" style="position: relative; width: 100%; aspect-ratio: 16/9; max-height: 400px; background: #0b0914; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-card);">
+                <div class="live-badge" id="live-badge" style="display: none; z-index: 10; position: absolute; top: 15px; left: 15px; background: rgba(255, 61, 0, 0.2); border: 1px solid var(--accent-rose); color: var(--accent-rose); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-circle" style="animation: pulse 1.5s infinite;"></i> SCANNING
+                </div>
+                <video id="webcam-feed-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: none;"></video>
+                
+                <div id="webcam-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-secondary); text-align: center; padding: 40px;">
+                    <i class="fa-solid fa-video-slash" style="font-size: 3rem; margin-bottom: 15px; color: var(--accent-rose);"></i>
+                    <p style="margin: 0; font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 600;">Camera stream paused.</p>
+                    <p style="margin: 6px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Click "Start Scanner" to activate webcam identity scanning.</p>
+                </div>
+                
+                <div id="scanner-laser" class="scanner-laser" style="display: none; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, var(--primary), transparent); box-shadow: 0 0 8px var(--primary); animation: scanMotion 2s linear infinite; pointer-events: none; z-index: 5;"></div>
+            </div>
+            
+            <!-- Status Logs Strip -->
+            <div class="status-log-strip" id="log-strip" style="width: 100%; margin: 12px 0 0 0; box-sizing: border-box; background: rgba(0,0,0,0.25); border: 1px solid var(--border-card); border-radius: 8px; padding: 10px 15px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; color: var(--text-secondary);">
+                <i class="fa-solid fa-pause" id="log-strip-icon" style="color: var(--accent-rose);"></i>
+                <span id="log-strip-text">Scanner paused. Waiting to start...</span>
+            </div>
+            
+            <!-- Targeted Student Scanner Alert Banner -->
+            <div id="target-student-banner" style="display: none; align-items: center; justify-content: space-between; background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 8px; padding: 10px 15px; margin-top: 12px; width: 100%; box-sizing: border-box;">
+                <span style="font-size: 0.82rem; font-weight: 700; color: var(--accent-blue);">
+                    <i class="fa-solid fa-crosshairs fa-spin"></i> Target scanning: <span id="target-student-name" style="text-transform: uppercase;">None</span>
+                </span>
+                <button onclick="clearTargetStudent()" style="background: rgba(255, 61, 0, 0.12); border: 1px solid rgba(255, 61, 0, 0.25); color: var(--accent-rose); font-weight: 700; font-size: 0.72rem; padding: 4px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255, 61, 0, 0.2)'" onmouseout="this.style.background='rgba(255, 61, 0, 0.12)'">
+                    <i class="fa-solid fa-xmark"></i> Scan All
+                </button>
+            </div>
+            
+            <!-- Inline Step-by-Step Scanner Progress HUD -->
+            <div id="camera-progress-hud" style="background: rgba(18, 16, 32, 0.4); border: 1px solid rgba(124, 77, 255, 0.15); border-radius: 12px; padding: 20px; margin-top: 15px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 25px; width: 100%; justify-content: center; flex-wrap: wrap;">
+                    <!-- Circular Scanner Progress -->
+                    <div class="progress-circle-container" style="position: relative; width: 90px; height: 90px; display: flex; align-items: center; justify-content: center;">
+                        <svg class="progress-ring" width="90" height="90">
+                            <circle class="progress-ring__background" stroke="rgba(255,255,255,0.04)" stroke-width="4" fill="transparent" r="38" cx="45" cy="45"/>
+                            <circle class="progress-ring__circle" id="hud-progress-circle" stroke="var(--primary)" stroke-width="4" fill="transparent" r="38" cx="45" cy="45" style="stroke-dasharray: 238.76; stroke-dashoffset: 238.76;"/>
+                        </svg>
+                        <div class="scanner-hud" style="position: absolute; display: flex; align-items: center; justify-content: center; width: 60px; height: 60px;">
+                            <i id="hud-avatar" class="fa-solid fa-user scanner-avatar" style="font-size: 1.4rem; color: var(--text-secondary); transition: all 0.3s ease;"></i>
+                        </div>
+                        <div style="position: absolute; bottom: 8px; font-size: 0.75rem; font-weight: 700; color: #fff;"><span id="hud-progress-percent">0</span>%</div>
+                    </div>
+                    
+                    <!-- Timeline Steps -->
+                    <div style="flex: 1; min-width: 250px; max-width: 450px;">
+                        <div class="timeline-steps-container">
+                            <div style="position: absolute; top: 16px; left: 0; right: 0; height: 2px; background: rgba(255,255,255,0.05); z-index: 1;">
+                                <div id="hud-timeline-bar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s ease;"></div>
+                            </div>
+                            
+                            <div class="timeline-step" id="hud-step-1">
+                                <div class="step-node-circle"><i class="fa-solid fa-camera"></i></div>
+                                <span class="timeline-step-title">Setup</span>
+                            </div>
+                            <div class="timeline-step" id="hud-step-2">
+                                <div class="step-node-circle"><i class="fa-solid fa-expand"></i></div>
+                                <span class="timeline-step-title">Detect</span>
+                            </div>
+                            <div class="timeline-step" id="hud-step-3">
+                                <div class="step-node-circle"><i class="fa-solid fa-brain"></i></div>
+                                <span class="timeline-step-title">Embed</span>
+                            </div>
+                            <div class="timeline-step" id="hud-step-4">
+                                <div class="step-node-circle"><i class="fa-solid fa-circle-check"></i></div>
+                                <span class="timeline-step-title">Verify</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Live Diagnostic log inside HUD -->
+                <div id="hud-diagnostic-console" style="width: 100%; background: #0b0914; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 10px 15px; font-family: monospace; font-size: 0.8rem; color: var(--text-secondary); max-height: 80px; overflow-y: auto; text-align: left; box-sizing: border-box;">
+                    <div style="color: var(--text-muted);">&gt; Scanner offline. Ready to initialize.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- RIGHT: Live Verification Lists -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- Roster statistics card -->
+        <div class="card" style="box-shadow: 0 10px 30px rgba(0,0,0,0.3); padding: 20px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0 0 15px 0; color: var(--text-primary); border-bottom: 1px solid var(--border-card); padding-bottom: 10px;">Verification Progress</h3>
+            <div style="display: flex; justify-content: space-around; text-align: center; gap: 15px;">
+                <div>
+                    <div style="font-size: 1.6rem; font-weight: 800; color: var(--accent-emerald);" id="stats-verified">0</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-top: 3px;">Present</div>
+                </div>
+                <div style="border-right: 1px solid var(--border-card);"></div>
+                <div>
+                    <div style="font-size: 1.6rem; font-weight: 800; color: var(--accent-rose);" id="stats-pending">0</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-top: 3px;">Absent</div>
+                </div>
+                <div style="border-right: 1px solid var(--border-card);"></div>
+                <div>
+                    <div style="font-size: 1.6rem; font-weight: 800; color: var(--accent-blue);" id="stats-total">0</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-top: 3px;">Total</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Roster Lists panels -->
+        <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+            <!-- Verified list -->
+            <div class="card" style="padding: 15px; max-height: 250px; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--accent-emerald); margin: 0; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-circle-check"></i> Present Students
+                    </h4>
+                    <input type="text" id="search-verified" placeholder="Search..." style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-card); border-radius: 6px; padding: 4px 8px; font-size: 0.75rem; width: 120px; color: var(--text-primary);">
+                </div>
+                <div id="verified-list" style="overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 8px; max-height: 180px; padding-right: 5px;">
+                    <div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.8rem;">No students present yet.</div>
+                </div>
+            </div>
+            
+            <!-- Pending list -->
+            <div class="card" style="padding: 15px; max-height: 350px; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--accent-rose); margin: 0; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-circle-xmark"></i> Absent Students
+                    </h4>
+                    <input type="text" id="search-pending" placeholder="Search..." style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-card); border-radius: 6px; padding: 4px 8px; font-size: 0.75rem; width: 120px; color: var(--text-primary);">
+                </div>
+                <div id="pending-list" style="overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 8px; max-height: 280px; padding-right: 5px;">
+                    <div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.8rem;">Loading roster...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden Canvas for Video Frame Capture -->
+<canvas id="hidden-video-canvas" width="640" height="480" style="display: none;"></canvas>
+
+<!-- CSS Animations -->
+<style>
+    @keyframes pulse {
+        0% { opacity: 0.4; }
+        50% { opacity: 1; }
+        100% { opacity: 0.4; }
+    }
+    @keyframes scanMotion {
+        0% { top: 0%; }
+        50% { top: 100%; }
+        100% { top: 0%; }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const video = document.getElementById("webcam-feed-video");
+    const canvas = document.getElementById("hidden-video-canvas");
+    const placeholder = document.getElementById("webcam-placeholder");
+    const laser = document.getElementById("scanner-laser");
+    const liveBadge = document.getElementById("live-badge");
+    const logStrip = document.getElementById("log-strip");
+    const logStripIcon = document.getElementById("log-strip-icon");
+    const logStripText = document.getElementById("log-strip-text");
+    
+    // HUD elements
+    const hudCircle = document.getElementById("hud-progress-circle");
+    const hudPercent = document.getElementById("hud-progress-percent");
+    const hudTimeline = document.getElementById("hud-timeline-bar");
+    const hudConsole = document.getElementById("hud-diagnostic-console");
+    const hudAvatar = document.getElementById("hud-avatar");
+    
+    const btnStart = document.getElementById("btn-start");
+    const btnStop = document.getElementById("btn-stop");
+    const btnReset = document.getElementById("btn-reset");
+    const btnFinish = document.getElementById("btn-finish");
+    const statusDot = document.getElementById("status-dot");
+    const statusText = document.getElementById("status-text");
+    const timerBadge = document.getElementById("timer-badge");
+    const sessionTimer = document.getElementById("session-timer");
+    
+    let timerInterval = null;
+    let secondsLeft = 300; // 5 minutes by default
+    
+    // Stats & Lists
+    const statsVerified = document.getElementById("stats-verified");
+    const statsPending = document.getElementById("stats-pending");
+    const statsTotal = document.getElementById("stats-total");
+    const verifiedList = document.getElementById("verified-list");
+    const pendingList = document.getElementById("pending-list");
+    const searchVerified = document.getElementById("search-verified");
+    const searchPending = document.getElementById("search-pending");
+    
+    let stream = null;
+    let scanInterval = null;
+    let rosterInterval = null;
+    let isScanning = false;
+    let targetStudentId = null;
+    let targetStudentName = null;
+    const examId = "{{ exam.id }}";
+    
+    // SVG DashOffset Constant for Progress Ring
+    const radius = 38;
+    const circumference = 2 * Math.PI * radius; // 238.76
+
+    function setHudProgress(percent) {
+        hudPercent.innerText = percent;
+        const offset = circumference - (percent / 100) * circumference;
+        hudCircle.style.strokeDashoffset = offset;
+        
+        // Timeline stages
+        let stepWidth = 0;
+        let activeStep = 1;
+        
+        if (percent >= 100) {
+            stepWidth = 100;
+            activeStep = 4;
+        } else if (percent >= 70) {
+            stepWidth = 66;
+            activeStep = 3;
+        } else if (percent >= 30) {
+            stepWidth = 33;
+            activeStep = 2;
+        }
+        
+        hudTimeline.style.width = `${stepWidth}%`;
+        
+        for (let i = 1; i <= 4; i++) {
+            const stepEl = document.getElementById(`hud-step-${i}`);
+            stepEl.className = "timeline-step";
+            if (i < activeStep) {
+                stepEl.classList.add("completed");
+            } else if (i === activeStep) {
+                stepEl.classList.add("active");
+                if (percent === 100 && activeStep === 4) {
+                    stepEl.classList.remove("active");
+                    stepEl.classList.add("completed");
+                }
+            }
+        }
+    }
+    
+    function logToConsole(message, type = "") {
+        const div = document.createElement("div");
+        div.className = `log-line ${type}`;
+        div.innerHTML = `&gt; ${new Date().toLocaleTimeString()}: ${message}`;
+        hudConsole.appendChild(div);
+        hudConsole.scrollTop = hudConsole.scrollHeight;
+    }
+    
+    function updateTimer() {
+        if (secondsLeft <= 0) {
+            btnStop.click();
+            return;
+        }
+        secondsLeft--;
+        const mins = Math.floor(secondsLeft / 60);
+        const secs = secondsLeft % 60;
+        if (sessionTimer) {
+            sessionTimer.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+    }
+    
+    window.selectTargetStudent = function(id, name, event) {
+        // If clicking on manual override buttons, do not trigger target selection
+        if (event && event.target.closest('.btn-toggle-status')) return;
+        
+        // If already selected, toggle it off (de-select)
+        if (targetStudentId === id) {
+            clearTargetStudent();
+            return;
+        }
+        
+        targetStudentId = id;
+        targetStudentName = name;
+        
+        // Remove selection from all cards and add to selected card
+        document.querySelectorAll('.pending-student-card').forEach(card => {
+            card.classList.remove('selected-target');
+        });
+        const selectedCard = document.getElementById(`pending-card-${id}`);
+        if (selectedCard) {
+            selectedCard.classList.add('selected-target');
+        }
+        
+        // Update alert banner
+        document.getElementById('target-student-name').innerText = name;
+        document.getElementById('target-student-banner').style.display = 'flex';
+        
+        logToConsole(`Target locked: Scanning ONLY for ${name}.`, "warning");
+        
+        // Auto-start scanner if not already scanning
+        if (!isScanning) {
+            btnStart.click();
+        }
+    };
+    
+    window.clearTargetStudent = function() {
+        targetStudentId = null;
+        targetStudentName = null;
+        
+        document.querySelectorAll('.pending-student-card').forEach(card => {
+            card.classList.remove('selected-target');
+        });
+        
+        document.getElementById('target-student-banner').style.display = 'none';
+        logToConsole("Target cleared. Scanning all registered students.", "");
+    };
+    
+    // Fetch and redraw the lists
+    function updateRosterLists() {
+        fetch(`/exams/${examId}/status-ajax/`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    statsVerified.innerText = data.verified_count;
+                    statsPending.innerText = data.pending_count;
+                    statsTotal.innerText = data.total_count;
+                    
+                    // Render Verified List
+                    if (data.verified.length === 0) {
+                        verifiedList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.8rem;">No students present yet.</div>';
+                    } else {
+                        let html = '';
+                        const q = searchVerified.value.toLowerCase().trim();
+                        data.verified.forEach(s => {
+                            if (q && !s.name.toLowerCase().includes(q) && !s.roll_number.toLowerCase().includes(q)) return;
+                            
+                            html += `
+                                <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0, 230, 118, 0.04); border: 1px solid rgba(0, 230, 118, 0.15); border-radius: 8px; padding: 8px 12px; transition: background 0.2s;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="width: 32px; height: 32px; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;">
+                                            ${s.photo_url ? `<img src="${s.photo_url}" style="width: 100%; height: 100%; object-fit: cover;">` : `<i class="fa-solid fa-user" style="font-size: 0.8rem; color: var(--text-muted);"></i>`}
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${s.name}</div>
+                                            <div style="font-size: 0.72rem; color: var(--text-secondary);">${s.roll_number}</div>
+                                        </div>
+                                    </div>
+                                    <div style="text-align: right; display: flex; align-items: center; gap: 10px;">
+                                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                                            <span style="background: rgba(0, 230, 118, 0.12); color: var(--accent-emerald); border: 1px solid rgba(0, 230, 118, 0.2); padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.7rem; white-space: nowrap;"><i class="fa-solid fa-check"></i> Present (${s.time_verified})</span>
+                                            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 2px;">Conf: ${s.confidence}%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        verifiedList.innerHTML = html || '<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.8rem;">No matching students.</div>';
+                    }
+                    
+                    // Render Pending List
+                    if (data.pending.length === 0) {
+                        pendingList.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.8rem;">All students present!</div>';
+                    } else {
+                        const q = searchPending.value.toLowerCase().trim();
+                        
+                        // Filter list
+                        const matchingPending = data.pending.filter(s => {
+                            if (!q) return true;
+                            return s.name.toLowerCase().includes(q) || s.roll_number.toLowerCase().includes(q);
+                        });
+                        
+                        // Auto-select single match, or clear target if no longer in search results
+                        if (q) {
+                            const isStillInResults = matchingPending.some(s => s.id == targetStudentId);
+                            if (!isStillInResults && targetStudentId !== null) {
+                                targetStudentId = null;
+                                targetStudentName = null;
+                                document.getElementById('target-student-banner').style.display = 'none';
+                            }
+                            
+                            if (matchingPending.length === 1) {
+                                const autoTarget = matchingPending[0];
+                                if (targetStudentId !== autoTarget.id) {
+                                    setTimeout(() => {
+                                        selectTargetStudent(autoTarget.id, autoTarget.name);
+                                    }, 0);
+                                }
+                            }
+                        }
+                        
+                        let html = '';
+                        matchingPending.forEach(s => {
+                            const isSelected = (s.id == targetStudentId);
+                            html += `
+                                <div onclick="selectTargetStudent(${s.id}, '${s.name.replace(/'/g, "\\'")}', event)" id="pending-card-${s.id}" class="pending-student-card ${isSelected ? 'selected-target' : ''}" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.01); border: 1px solid var(--border-card); border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: all 0.2s;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="width: 32px; height: 32px; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,0.05); border: 1px solid var(--border-card); display: flex; align-items: center; justify-content: center;">
+                                            ${s.photo_url ? `<img src="${s.photo_url}" style="width: 100%; height: 100%; object-fit: cover;">` : `<i class="fa-solid fa-user" style="font-size: 0.8rem; color: var(--text-muted);"></i>`}
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${s.name}</div>
+                                            <div style="font-size: 0.72rem; color: var(--text-secondary);">${s.roll_number}</div>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="font-size: 0.7rem; color: var(--accent-rose); font-weight: 600;">
+                                            <i class="fa-solid fa-circle-xmark"></i> Absent
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        pendingList.innerHTML = html || '<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.8rem;">No matching students.</div>';
+                    }
+                }
+            })
+            .catch(err => console.error("Error fetching roster:", err));
+    }
+    
+    // Set up real-time search triggers
+    searchVerified.addEventListener("input", updateRosterLists);
+    searchPending.addEventListener("input", updateRosterLists);
+    
+    // Initialize roster details
+    updateRosterLists();
+    
+    // Webcam Capture & AJAX Recognition
+    function captureAndRecognize() {
+        if (!isScanning) return;
+        
+        // Demand that a student is selected before executing scanning comparison
+        if (!targetStudentId) {
+            logStripText.innerText = "Select a student from the Absent list to scan.";
+            logStripIcon.className = "fa-solid fa-hand";
+            logStripIcon.style.color = "var(--accent-rose)";
+            logStrip.style.borderColor = "var(--accent-rose)";
+            logStrip.style.background = "rgba(255, 61, 0, 0.05)";
+            setHudProgress(0);
+            return;
+        }
+        
+        setHudProgress(15);
+        logToConsole("Acquiring webcam frame...", "warning");
+        
+        const context = canvas.getContext("2d");
+        // Draw the current frame from video to canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert to base64
+        const dataURL = canvas.toDataURL("image/jpeg");
+        
+        setHudProgress(35);
+        logToConsole("Face detection in progress...", "");
+        
+        // Send frame to server
+        const formData = new FormData();
+        formData.append("image", dataURL);
+        if (targetStudentId) {
+            formData.append("target_student_id", targetStudentId);
+        }
+        
+        fetch(`/exams/${examId}/recognize-frame/`, {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}"
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                setHudProgress(100);
+                logToConsole(data.message, "success");
+                logStripText.innerText = data.message;
+                logStrip.style.borderColor = "var(--accent-emerald)";
+                logStrip.style.background = "rgba(0, 230, 118, 0.05)";
+                logStripIcon.className = "fa-solid fa-circle-check";
+                logStripIcon.style.color = "var(--accent-emerald)";
+                
+                // Flash HUD icon to verified check
+                hudAvatar.className = "fa-solid fa-circle-check scanner-avatar";
+                hudAvatar.style.color = "var(--accent-emerald)";
+                
+                // Reset HUD back to scanning after a delay
+                setTimeout(() => {
+                    if (isScanning) {
+                        hudAvatar.className = "fa-solid fa-user scanner-avatar";
+                        hudAvatar.style.color = "var(--text-secondary)";
+                        setHudProgress(0);
+                    }
+                }, 2000);
+                
+                // Clear selection upon successful match to wait for next selection
+                clearTargetStudent();
+                updateRosterLists();
+            } else {
+                setHudProgress(data.percent || 0);
+                const isRejected = data.message.includes("Rejected");
+                logToConsole(data.message, (data.message.includes("error") || isRejected) ? "error" : "");
+                
+                logStripText.innerText = data.message;
+                if (data.message.includes("no face")) {
+                    logStrip.style.borderColor = "var(--border-card)";
+                    logStrip.style.background = "rgba(0,0,0,0.25)";
+                    logStripIcon.className = "fa-solid fa-spinner fa-spin";
+                    logStripIcon.style.color = "var(--primary)";
+                } else if (data.message.includes("detected but not")) {
+                    logStrip.style.borderColor = "#ff9100";
+                    logStrip.style.background = "rgba(255, 145, 0, 0.05)";
+                    logStripIcon.className = "fa-solid fa-circle-exclamation";
+                    logStripIcon.style.color = "#ff9100";
+                } else {
+                    logStrip.style.borderColor = "var(--accent-rose)";
+                    logStrip.style.background = "rgba(255, 61, 0, 0.05)";
+                    logStripIcon.className = "fa-solid fa-circle-exclamation";
+                    logStripIcon.style.color = "var(--accent-rose)";
+                    
+                    if (isRejected) {
+                        hudAvatar.className = "fa-solid fa-circle-xmark scanner-avatar";
+                        hudAvatar.style.color = "var(--accent-rose)";
+                    }
+                }
+            }
+        })
+        .catch(err => {
+            logToConsole(`API Error: ${err}`, "error");
+            setHudProgress(0);
+        });
+    }
+
+    // Start Webcam & Scanner Loop
+    btnStart.addEventListener("click", function() {
+        logToConsole("Initializing hardware webcam capture...");
+        btnStart.disabled = true;
+        btnReset.disabled = true;
+        
+        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+            .then(mediaStream => {
+                stream = mediaStream;
+                video.srcObject = stream;
+                video.style.display = "block";
+                placeholder.style.display = "none";
+                laser.style.display = "block";
+                liveBadge.style.display = "inline-flex";
+                
+                btnStop.disabled = false;
+                isScanning = true;
+                
+                statusDot.style.background = "var(--accent-emerald)";
+                statusDot.style.boxShadow = "0 0 8px var(--accent-emerald)";
+                statusText.innerText = "Scanner Online & Scanning";
+                
+                logToConsole("Webcam feed online. Starting active identification thread.", "success");
+                logStripText.innerText = "Scanning active. Face identity verification running...";
+                logStripIcon.className = "fa-solid fa-spinner fa-spin";
+                logStripIcon.style.color = "var(--primary)";
+                logStrip.style.borderColor = "var(--primary)";
+                logStrip.style.background = "rgba(124, 77, 255, 0.05)";
+                
+                // Run recognition scan in high processing speed (every 0.4 seconds)
+                scanInterval = setInterval(captureAndRecognize, 400);
+                rosterInterval = setInterval(updateRosterLists, 1500);
+                
+                // Start 5-minute countdown timer
+                secondsLeft = 300;
+                if (sessionTimer) sessionTimer.innerText = "05:00";
+                if (timerBadge) timerBadge.style.display = "flex";
+                if (timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(updateTimer, 1000);
+            })
+            .catch(err => {
+                btnStart.disabled = false;
+                btnReset.disabled = false;
+                logToConsole(`Camera Access Failed: ${err.message}`, "error");
+                alert("Camera access denied or device in use. Please check permissions.");
+            });
+    });
+
+    // Stop Scanner Loop & Camera
+    btnStop.addEventListener("click", function() {
+        btnStop.disabled = true;
+        isScanning = false;
+        
+        if (scanInterval) clearInterval(scanInterval);
+        if (rosterInterval) clearInterval(rosterInterval);
+        if (timerInterval) clearInterval(timerInterval);
+        if (timerBadge) timerBadge.style.display = "none";
+        
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        
+        video.srcObject = null;
+        video.style.display = "none";
+        placeholder.style.display = "flex";
+        laser.style.display = "none";
+        liveBadge.style.display = "none";
+        
+        btnStart.disabled = false;
+        btnReset.disabled = false;
+        
+        statusDot.style.background = "var(--accent-rose)";
+        statusDot.style.boxShadow = "0 0 8px var(--accent-rose)";
+        statusText.innerText = "Scanner Offline";
+        
+        logToConsole("Hardware camera capture thread terminated.", "");
+        logStripText.innerText = "Scanner paused. Camera stream offline.";
+        logStripIcon.className = "fa-solid fa-pause";
+        logStripIcon.style.color = "var(--accent-rose)";
+        logStrip.style.borderColor = "var(--border-card)";
+        logStrip.style.background = "rgba(0,0,0,0.25)";
+        
+        setHudProgress(0);
+        hudAvatar.className = "fa-solid fa-user scanner-avatar";
+        hudAvatar.style.color = "var(--text-secondary)";
+    });
+
+    // Reset Exam Verification Logs
+    btnReset.addEventListener("click", function() {
+        if (confirm("Are you sure you want to reset all identity verification logs for this exam? This will clear all verified statuses back to pending.")) {
+            fetch(`/exams/${examId}/reset/`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    logToConsole("Roster logs reset to Pending.", "warning");
+                    updateRosterLists();
+                }
+            })
+            .catch(err => console.error("Error resetting logs:", err));
+        }
+    });
+
+    // Finish Exam Verification Session
+    btnFinish.addEventListener("click", function() {
+        // Stop scanner first if running
+        if (isScanning) {
+            btnStop.click();
+        }
+        fetch(`/exams/${examId}/complete/?ajax=1`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                }
+            })
+            .catch(err => console.error("Error completing exam:", err));
+    });
+
+    // Expose toggleExamStudentStatus to global scope
+    window.toggleExamStudentStatus = function(logId) {
+        if (!logId || logId === "undefined") {
+            logToConsole("Error: logId is undefined. Please reload the page (Ctrl + F5) to refresh the browser cache.", "error");
+            return;
+        }
+        logToConsole(`Manually toggling status for log ID: ${logId}...`);
+        fetch(`/exams/toggle-status/${logId}/`)
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`Server returned status ${res.status}`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    logToConsole("Status toggled successfully.", "success");
+                    updateRosterLists();
+                } else {
+                    logToConsole("Failed to toggle status.", "error");
+                }
+            })
+            .catch(err => {
+                logToConsole(`Error toggling status: ${err}`, "error");
+            });
+    };
+});
+</script>
+{% endblock %}

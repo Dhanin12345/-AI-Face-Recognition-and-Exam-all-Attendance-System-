@@ -1,0 +1,161 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard | SmartAttend{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+
+<!-- Welcome Banner (ZenHabit Style Combined with SmartAttend) -->
+<div class="welcome-banner" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <div class="welcome-title" style="margin-bottom: 4px;">
+            Good Day ☀️, 
+            {% if request.user.profile.full_name %}
+                {{ request.user.profile.full_name }}
+            {% else %}
+                {{ request.user.username }}
+            {% endif %}
+        </div>
+        <div class="welcome-subtitle" style="margin-bottom: 0;">{{ today }}</div>
+    </div>
+    <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle Dark/Light Mode">
+        <i class="fa-solid fa-moon"></i>
+    </button>
+</div>
+
+
+<!-- Stats Cards Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon purple">
+            <i class="fa-regular fa-calendar-check"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ total_sessions }}</span>
+            <span class="stat-label">Total Sessions</span>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon emerald">
+            <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ present_today }}</span>
+            <span class="stat-label">Students Marked Present</span>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon blue">
+            <i class="fa-solid fa-chart-line"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ avg_attendance }}%</span>
+            <span class="stat-label">Avg Attendance</span>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon rose">
+            <i class="fa-solid fa-book-open"></i>
+        </div>
+        <div class="stat-info">
+            <span class="stat-value">{{ subjects_handled }}</span>
+            <span class="stat-label">Subjects Handled</span>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-widgets-grid" style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 30px; margin-top: 25px; margin-bottom: 40px; align-items: start;">
+    
+    <!-- LEFT COLUMN: Recent Attendance Sessions -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="display: flex; align-items: center; gap: 10px; font-size: 1.25rem;">
+                <i class="fa-solid fa-box-archive" style="color: var(--primary);"></i> Recent Sessions
+            </h3>
+            <a href="{% url 'reports' %}" style="font-size: 0.85rem; color: var(--accent-blue); text-decoration: none; display: flex; align-items: center; gap: 5px; font-weight: 600;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                View all <i class="fa-solid fa-arrow-right" style="font-size: 0.75rem;"></i>
+            </a>
+        </div>
+        
+        <div class="table-container" style="overflow-x: auto;">
+            {% if sessions %}
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+                        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Subject</th>
+                        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Dept / Sec</th>
+                        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Present</th>
+                        <th style="padding: 10px 8px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in sessions %}
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);" onmouseover="this.style.background='rgba(255,255,255,0.01)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 12px 8px; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">{{ session.subject }}</td>
+                        <td style="padding: 12px 8px; font-size: 0.85rem; color: var(--text-secondary);">{{ session.dept_section }}</td>
+                        <td style="padding: 12px 8px; color: var(--accent-emerald); font-weight: 700; font-size: 0.9rem;">{{ session.present_total }}</td>
+                        <td style="padding: 12px 8px;">
+                            <div style="display: flex; gap: 8px;">
+                                <a href="{% url 'session_detail' session.id %}" class="btn-action-export" style="padding: 5px 10px; font-size: 0.75rem; border-radius: 6px; background: rgba(124, 77, 255, 0.15); border-color: rgba(124, 77, 255, 0.3); color: var(--primary);">
+                                    <i class="fa-solid fa-eye"></i> View
+                                </a>
+                                <a href="{% url 'export_excel' session.id %}" class="btn-action-export" style="padding: 5px 10px; font-size: 0.75rem; border-radius: 6px;">
+                                    <i class="fa-solid fa-file-excel"></i> Export
+                                </a>
+                                <a href="{% url 'delete_session' session.id %}" class="btn-action-delete" style="padding: 5px 10px; font-size: 0.75rem; border-radius: 6px; text-decoration: none;" onclick="return confirm('Are you sure you want to delete this attendance attendance session? It will be moved to the Recycle Bin.');">
+                                    <i class="fa-solid fa-trash-can"></i> Delete
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div style="text-align: center; padding: 25px; color: var(--text-secondary); font-size: 0.9rem;">
+                <p>No active sessions found.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Live Database Transactions -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="display: flex; align-items: center; gap: 10px; font-size: 1.25rem;">
+                <i class="fa-solid fa-timeline" style="color: var(--accent-emerald);"></i> Live DB Logs
+            </h3>
+            <a href="{% url 'database_tracking' %}" style="font-size: 0.85rem; color: var(--accent-blue); text-decoration: none; display: flex; align-items: center; gap: 5px; font-weight: 600;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                Track <i class="fa-solid fa-arrow-right" style="font-size: 0.75rem;"></i>
+            </a>
+        </div>
+        
+        <div class="timeline-logs" style="display: flex; flex-direction: column; gap: 15px;">
+            {% if checkins %}
+                {% for log in checkins %}
+                <div style="display: flex; gap: 12px; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                    <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-emerald); box-shadow: 0 0 6px var(--accent-emerald-glow); margin-top: 5px; flex-shrink: 0;"></div>
+                    <div style="flex-grow: 1; min-width: 0;">
+                        <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ log.student_name }}</div>
+                        <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            {{ log.subject }} &bull; Conf: <span style="color: var(--accent-emerald); font-weight: 600;">{{ log.confidence }}%</span>
+                        </div>
+                    </div>
+                    <div style="font-family: monospace; font-size: 0.8rem; color: var(--accent-blue); background: rgba(0, 229, 255, 0.08); padding: 2px 6px; border-radius: 4px; flex-shrink: 0;">
+                        {{ log.time_marked }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.88rem;">
+                    <p>No recent database check-ins logged.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

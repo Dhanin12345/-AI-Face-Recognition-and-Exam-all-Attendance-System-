@@ -1,0 +1,168 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SmartAttend | AI Face Attendance{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'attendance/style.css' %}?v=2.9">
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% block extra_head %}{% endblock %}
+    <style>
+    /* Global template overrides */
+    </style>
+</head>
+<body class="dark-theme">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'dark';
+            if (theme === 'light') {
+                document.body.classList.remove('dark-theme');
+            }
+        })();
+    </script>
+
+    <!-- Floating Particles Background Animation -->
+    <div class="bg-animation">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Logo -->
+            <div class="sidebar-logo">
+                <a href="{% url 'dashboard' %}" class="brand-logo">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>SmartAttend</span>
+                </a>
+            </div>
+
+            <!-- Navigation Links -->
+            <div class="sidebar-menu-wrapper">
+                <div class="sidebar-section-label">MAIN</div>
+                <nav class="sidebar-nav">
+                    <a href="{% url 'dashboard' %}" class="sidebar-nav-item {% block nav_dashboard %}{% endblock %}">
+                        <i class="fa-solid fa-chart-simple"></i> Dashboard
+                    </a>
+                    <a href="{% url 'manage_students' %}" class="sidebar-nav-item {% block nav_students %}{% endblock %}">
+                        <i class="fa-solid fa-users"></i> Students
+                    </a>
+                    <a href="{% url 'take_attendance_setup' %}" class="sidebar-nav-item {% block nav_take_attendance %}{% endblock %}">
+                        <i class="fa-solid fa-camera"></i> Take Attendance
+                    </a>
+                    <a href="{% url 'calendar_page' %}" class="sidebar-nav-item {% block nav_calendar %}{% endblock %}">
+                        <i class="fa-solid fa-calendar-days"></i> Calendar
+                    </a>
+                </nav>
+
+                <div class="sidebar-section-label">ENGAGE & LIVE</div>
+                <nav class="sidebar-nav">
+                    <a href="{% url 'reports' %}" class="sidebar-nav-item {% block nav_reports %}{% endblock %}">
+                        <i class="fa-solid fa-folder-open"></i> Reports
+                    </a>
+                    <a href="{% url 'database_tracking' %}" class="sidebar-nav-item {% block nav_tracking %}{% endblock %}">
+                        <i class="fa-solid fa-database"></i> Live DB Tracking
+                    </a>
+                    <a href="{% url 'recycle_bin' %}" class="sidebar-nav-item {% block nav_recycle %}{% endblock %}">
+                        <i class="fa-solid fa-trash-can"></i> Recycle Bin
+                    </a>
+                    <a href="{% url 'exam_list' %}" class="sidebar-nav-item {% block nav_exam %}{% endblock %}">
+                        <i class="fa-solid fa-file-signature"></i> Exam Scanner
+                    </a>
+                </nav>
+
+                <div class="sidebar-section-label">ACCOUNT</div>
+                <nav class="sidebar-nav">
+                    <a href="/admin/" target="_blank" class="sidebar-nav-item">
+                        <i class="fa-solid fa-user-gear"></i> Admin Panel
+                    </a>
+                    <a href="{% url 'logout' %}" class="sidebar-nav-item btn-logout-sidebar">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
+                    </a>
+                </nav>
+            </div>
+
+
+            <!-- Bottom User Widget -->
+            <div class="sidebar-user-widget">
+                <div class="user-avatar-circle">
+                    {% if request.user.profile.full_name %}
+                        {{ request.user.profile.full_name|slice:":1"|upper }}
+                    {% else %}
+                        {{ request.user.username|slice:":1"|upper }}
+                    {% endif %}
+                </div>
+                <div class="user-widget-info">
+                    <div class="user-widget-name">
+                        {% if request.user.profile.full_name %}
+                            {{ request.user.profile.full_name }}
+                        {% else %}
+                            {{ request.user.username }}
+                        {% endif %}
+                    </div>
+                    <div class="user-widget-role">
+                        <i class="fa-solid fa-graduation-cap"></i> 
+                        {% if request.user.profile.department %}
+                            {{ request.user.profile.department }}
+                        {% else %}
+                            CSE
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="main-content-wrapper">
+            <main>
+                {% block content %}
+                {% endblock %}
+            </main>
+            
+            <!-- Bottom copyright note -->
+            <footer class="footer-note">
+                <p>&copy; 2026 Smart Attendance System | AI-Powered Face Recognition</p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const themeToggleBtn = document.getElementById("theme-toggle-btn");
+            if (themeToggleBtn) {
+                const icon = themeToggleBtn.querySelector("i");
+                const isDark = document.body.classList.contains("dark-theme");
+                
+                // Update icon based on theme state
+                if (isDark) {
+                    icon.className = "fa-solid fa-sun";
+                } else {
+                    icon.className = "fa-solid fa-moon";
+                }
+
+                themeToggleBtn.addEventListener("click", function() {
+                    const currentDark = document.body.classList.toggle("dark-theme");
+                    localStorage.setItem("theme", currentDark ? "dark" : "light");
+                    if (currentDark) {
+                        icon.className = "fa-solid fa-sun";
+                    } else {
+                        icon.className = "fa-solid fa-moon";
+                    }
+                });
+            }
+        });
+    </script>
+
+    {% block scripts %}
+    {% endblock %}
+    
+
+
+</body>
+</html>

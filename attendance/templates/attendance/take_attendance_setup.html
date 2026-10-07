@@ -1,0 +1,75 @@
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Start Session | SmartAttend{% endblock %}
+{% block nav_take_attendance %}active{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto; padding: 20px 0;">
+    <!-- Back Button -->
+    <a href="{% url 'dashboard' %}" style="display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); text-decoration: none; margin-bottom: 20px; font-weight: 500; font-size: 0.95rem; transition: color 0.2s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-secondary)'">
+        <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+    </a>
+
+    <!-- Setup Card -->
+    <div class="card" style="box-shadow: 0 15px 40px rgba(0,0,0,0.4); border-color: rgba(124, 77, 255, 0.15);">
+        <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 20px; margin-bottom: 25px;">
+            <h2 class="card-title" style="display: flex; align-items: center; gap: 12px; font-size: 1.6rem;">
+                <i class="fa-solid fa-camera" style="color: var(--primary); text-shadow: 0 0 10px var(--primary-glow);"></i> Configure Attendance Session
+            </h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">Set up class parameters below to initialize the camera recognition session.</p>
+        </div>
+        
+        <form action="{% url 'start_attendance_session' %}" method="POST">
+            {% csrf_token %}
+            <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px;">
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                    <label class="form-label" for="subject" style="color: var(--text-primary); font-weight: 600; font-size: 0.9rem;">Subject</label>
+                    <select name="subject" id="subject" class="form-select" style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-card); color: var(--text-primary); padding: 12px 15px; border-radius: 12px; font-family: inherit; font-size: 0.95rem; cursor: pointer; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='0 0 8px var(--primary-glow)'" onblur="this.style.borderColor='var(--border-card)'; this.style.boxShadow='none'" required>
+                        <option value="" disabled selected>Choose subject</option>
+                        {% for subject in subjects %}
+                            <option value="{{ subject.name }}">{{ subject.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                    <label class="form-label" for="department" style="color: var(--text-primary); font-weight: 600; font-size: 0.9rem;">Department</label>
+                    <select name="department" id="department" class="form-select" style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-card); color: var(--text-primary); padding: 12px 15px; border-radius: 12px; font-family: inherit; font-size: 0.95rem; cursor: pointer; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='0 0 8px var(--primary-glow)'" onblur="this.style.borderColor='var(--border-card)'; this.style.boxShadow='none'" required>
+                        <option value="" disabled selected>Choose department</option>
+                        {% for dept in departments %}
+                            <option value="{{ dept.code }}">{{ dept.code }} - {{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                    <label class="form-label" for="section" style="color: var(--text-primary); font-weight: 600; font-size: 0.9rem;">Section</label>
+                    <select name="section" id="section" class="form-select" style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-card); color: var(--text-primary); padding: 12px 15px; border-radius: 12px; font-family: inherit; font-size: 0.95rem; cursor: pointer; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='0 0 8px var(--primary-glow)'" onblur="this.style.borderColor='var(--border-card)'; this.style.boxShadow='none'" required>
+                        <option value="" disabled selected>Choose section</option>
+                        {% for section in sections %}
+                            <option value="{{ section.name }}">{{ section.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                    <label class="form-label" for="period" style="color: var(--text-primary); font-weight: 600; font-size: 0.9rem;">Period No.</label>
+                    <select name="period" id="period" class="form-select" style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-card); color: var(--text-primary); padding: 12px 15px; border-radius: 12px; font-family: inherit; font-size: 0.95rem; cursor: pointer; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='var(--primary)'; this.style.boxShadow='0 0 8px var(--primary-glow)'" onblur="this.style.borderColor='var(--border-card)'; this.style.boxShadow='none'" required>
+                        <option value="" disabled selected>Choose period</option>
+                        {% for period in periods %}
+                            <option value="{{ period.name }}">{{ period.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div style="margin-top: 35px; display: flex; justify-content: flex-end;">
+                <button type="submit" class="btn-submit" style="background: var(--primary-gradient); color: white; border: none; padding: 14px 28px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: all 0.3s; box-shadow: 0 4px 15px var(--primary-glow);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px var(--primary-glow)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px var(--primary-glow)'">
+                    <i class="fa-solid fa-video"></i> Start Attendance Session
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

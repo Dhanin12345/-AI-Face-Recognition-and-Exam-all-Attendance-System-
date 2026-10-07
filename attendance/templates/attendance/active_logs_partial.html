@@ -1,0 +1,19 @@
+{% for log in today_logs %}
+<div class="log-item {% if log.student %}known{% else %}unknown{% endif %}">
+    <div class="student-row">
+        {% if log.student %}
+            <i class="fa-solid fa-circle-check" style="color: var(--accent-emerald);"></i>
+            <span style="font-weight: 500; font-size: 0.9rem;">{{ log.name }}</span>
+        {% else %}
+            <i class="fa-solid fa-circle-xmark" style="color: var(--accent-rose);"></i>
+            <span style="color: var(--text-secondary); font-size: 0.9rem;">{{ log.name }}</span>
+        {% endif %}
+    </div>
+    <span class="log-time">{{ log.time|time:"H:i:s" }}</span>
+</div>
+{% empty %}
+<div style="text-align: center; padding: 3rem 0; color: var(--text-secondary); font-size: 0.85rem;">
+    <i class="fa-solid fa-hourglass-start" style="font-size: 1.5rem; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+    <p>Waiting for face detection...</p>
+</div>
+{% endfor %}
